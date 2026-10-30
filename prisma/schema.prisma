@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ProposalStatus {
+  draft
+  sent
+  approved
+  paid
+}
+
+enum ItemCategory {
+  DINING
+  ACTIVITIES
+  WELLNESS
+  EXCURSIONS
+  TRANSPORT
+  EXPERIENCES
+}
+
+model Member {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  reservations Reservation[]
+
+  @@map("members")
+}
+
+/// Trip dates are destination-local calendar dates (YYYY-MM-DD) interpreted in `timeZone`.
+model Reservation {
+  id            Int        @id @default(autoincrement())
+  memberId      Int        @map("member_id")
+  member        Member     @relation(fields: [memberId], references: [id])
+  destination   String
+  villa         String
+  timeZone      String     @map("time_zone")
+  arrivalDate   String     @map("arrival_date")
+  departureDate String     @map("departure_date")
+  proposals     Proposal[]
+
+  @@index([memberId])
+  @@map("reservations")
+}
+
+model Proposal {
+  id            Int            @id @default(autoincrement())
+  publicId      String         @unique @default(nanoid()) @map("public_id")
+  reservationId Int            @map("reservation_id")
+  reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  status        ProposalStatus @default(draft)
+  note          String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  sentAt        DateTime?      @map("sent_at")
+  approvedAt    DateTime?      @map("approved_at")
+  paidAt        DateTime?      @map("paid_at")
+  items         ProposalItem[]
+  emails        SentEmail[]
+
+  @@index([reservationId, status])
+  @@map("proposals")
+}
+
+/// `scheduledAt` is local wall time (YYYY-MM-DDTHH:mm) in the reservation's time zone.
+model ProposalItem {
+  id          Int          @id @default(autoincrement())
+  proposalId  Int          @map("proposal_id")
+  proposal    Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  category    ItemCategory
+  title       String
+  description String       @default("")
+  scheduledAt String       @map("scheduled_at")
+  priceCents  Int          @map("price_cents")
+
+  @@index([proposalId, scheduledAt])
+  @@map("proposal_items")
+}
+
+model SentEmail {
+  id          Int      @id @default(autoincrement())
+  proposalId  Int      @map("proposal_id")
+  proposal    Proposal @relation(fields: [proposalId], references: [id])
+  toEmail     String   @map("to_email")
+  subject     String
+  bodyPreview String   @map("body_preview")
+  sentAt      DateTime @default(now()) @map("sent_at")
+
+  @@index([proposalId])
+  @@map("sent_emails")
+}
