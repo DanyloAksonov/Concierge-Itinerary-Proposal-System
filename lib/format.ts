@@ -55,6 +55,18 @@ export function formatTripDate(date: string): string {
   return tripDate.format(new Date(`${date}T00:00:00Z`));
 }
 
+const longDay = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+/** "2027-03-15" → "Monday, March 15" */
+export function formatLongDay(date: string): string {
+  return longDay.format(new Date(`${date}T00:00:00Z`));
+}
+
 /** "2027-03-15" → "Mon, Mar 15" */
 export function formatShortDay(date: string): string {
   return shortDay.format(new Date(`${date}T00:00:00Z`));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatClockTime,
+  formatLongDay,
   formatMoney,
   formatShortDay,
   formatStayRange,
@@ -32,6 +33,7 @@ describe("display formatting", () => {
   it("formats money, days, times and the stay range without shifting time zones", () => {
     expect(formatMoney(125_050)).toBe("$1,250.50");
     expect(formatShortDay("2027-03-15")).toBe("Mon, Mar 15");
+    expect(formatLongDay("2027-03-15")).toBe("Monday, March 15");
     expect(formatTripDate("2027-03-22")).toBe("Mon, Mar 22, 2027");
     expect(plain(formatClockTime("2027-03-16T19:00"))).toBe("7:00 PM");
     expect(plain(formatStayRange("2027-03-15", "2027-03-22"))).toBe("March 15 – 22, 2027");
