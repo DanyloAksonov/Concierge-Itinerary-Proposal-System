@@ -2,6 +2,14 @@ import { prisma } from "@/lib/db/client";
 
 const MEMBER = { name: "James Whitfield", email: "james.whitfield@example.com" };
 
+// Same email as the backfill in the add_concierges migration, so the upsert reuses that row.
+const CONCIERGE = {
+  name: "Sofia Navarro",
+  title: "Senior Concierge, Punta Mita",
+  email: "sofia.navarro@example.com",
+  phone: "+52 329 555 0142",
+};
+
 const RESERVATION = {
   destination: "Punta Mita, Mexico",
   villa: "Villa Punta Mita",
@@ -12,6 +20,12 @@ const RESERVATION = {
 
 // Idempotent: safe to run on every `npm run dev`.
 async function main() {
+  await prisma.concierge.upsert({
+    where: { email: CONCIERGE.email },
+    update: CONCIERGE,
+    create: CONCIERGE,
+  });
+
   const member = await prisma.member.upsert({
     where: { email: MEMBER.email },
     update: { name: MEMBER.name },

@@ -2,7 +2,7 @@
 
 A lightweight tool for Exclusive Resorts concierges: build a curated itinerary for a member's upcoming stay, send it as a proposal, and let the member review, approve and "pay" to lock it in.
 
-> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity · concierge dashboard · member view · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
+> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity ✅ · concierge dashboard · member view · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ No `.env` file or database server is required. On a fresh clone:
 1. `npm install` runs `prisma generate` (via `postinstall`) to build the typed Prisma client into `lib/generated/prisma/`.
 2. `npm run dev` first runs `npm run db:setup` (via `predev`), which:
    - creates `data/app.db` if it doesn't exist and applies all migrations (`prisma migrate deploy`);
-   - seeds the member **James Whitfield** and his reservation at **Villa Punta Mita, Mexico** (15–22 March 2027). The seed is idempotent, so it is safe on every start.
+   - seeds the member **James Whitfield**, his reservation at **Villa Punta Mita, Mexico** (15–22 March 2027) and the concierge **Sofia Navarro**. The seed is idempotent, so it is safe on every start.
 3. Then Next.js starts in development mode.
 
 ## Scripts
@@ -45,9 +45,10 @@ No `.env` file or database server is required. On a fresh clone:
 ## Database
 
 - **Engine:** SQLite file at `data/app.db` (git-ignored), accessed through **Prisma 7** with the `better-sqlite3` driver adapter.
-- **Schema:** [`prisma/schema.prisma`](prisma/schema.prisma) is the source of truth. Tables and columns are snake_case in SQLite (`members`, `reservations`, `proposals`, `proposal_items`, `sent_emails`).
+- **Schema:** [`prisma/schema.prisma`](prisma/schema.prisma) is the source of truth. Tables and columns are snake_case in SQLite (`members`, `reservations`, `concierges`, `proposals`, `proposal_items`, `sent_emails`).
+- **Who prepared a proposal:** every proposal belongs to a concierge (`proposals.concierge_id`). There is no login yet, so the server attributes new proposals to the current concierge itself (`getCurrentConcierge()` in `lib/concierges/service.ts`, the single place a session lookup will go); clients never send a concierge id. Members and concierges are separate tables — different roles and relations.
 - **Migrations:** SQL files in [`prisma/migrations/`](prisma/migrations), committed to the repo. Prisma records which ones were applied in a `_prisma_migrations` table.
-- **Audit timestamps:** every table has `created_at`; tables whose rows change after creation (`members`, `reservations`, `proposals`) also have `updated_at`, set by Prisma on every update. `proposal_items` are replaced, never edited, and `sent_emails` is an append-only log whose `sent_at` is its creation time.
+- **Audit timestamps:** every table has `created_at`; tables whose rows change after creation (`members`, `reservations`, `concierges`, `proposals`) also have `updated_at`, set by Prisma on every update. `proposal_items` are replaced, never edited, and `sent_emails` is an append-only log whose `sent_at` is its creation time.
 
 ### Common tasks
 
@@ -97,8 +98,8 @@ JSON over Next.js Route Handlers. A proposal's `id` is its unguessable public id
 |---|---|---|---|
 | `GET /api/reservations` | — | `200 { reservations: [{ reservation, member }] }` | — |
 | `POST /api/proposals` | `{ reservationId, note?, items?: Item[] }` | `201` proposal (status `draft`) + `Location` header | 400, 404, 422 |
-| `GET /api/proposals` | — | `200 { proposals: [{ id, status, itemCount, totalCents, …timestamps }] }` | — |
-| `GET /api/proposals/:id` | — | `200` proposal with items (sorted by time), `totalCents`, reservation, member | 404 |
+| `GET /api/proposals` | — | `200 { proposals: [{ id, conciergeName, status, itemCount, totalCents, …timestamps }] }` | — |
+| `GET /api/proposals/:id` | — | `200` proposal with items (sorted by time), `totalCents`, reservation, member, concierge | 404 |
 | `PATCH /api/proposals/:id` | **either** `{ status }` **or** `{ note?, items? }` (drafts only; `items` replaces the list) | `200` proposal | 400, 404, 409, 422 |
 | `POST /api/proposals/:id/send` | — | `200 { proposal, email }` | 404, 409 |
 
@@ -150,6 +151,7 @@ lib/
   db/                   Prisma client and database URL
   proposals/            proposal domain: service, status machine, rules, validation, email
   reservations/         reservation domain: service
+  concierges/           concierge DTO + current-concierge resolver
   errors.ts             DomainError (business-rule failures)
   generated/prisma/     generated Prisma client (git-ignored)
 prisma/                 schema, migrations, seed

@@ -20,8 +20,16 @@ export function createTestDb() {
   return { db, cleanup };
 }
 
-/** The brief's scenario: James Whitfield at Villa Punta Mita, 15–22 March 2027. */
-export async function seedStay(db: TestDb) {
+/** The brief's scenario: James Whitfield at Villa Punta Mita, 15–22 March 2027, plus a concierge. */
+export async function seedScenario(db: TestDb) {
+  await db.concierge.create({
+    data: {
+      name: "Sofia Navarro",
+      title: "Senior Concierge, Punta Mita",
+      email: "sofia.navarro@example.com",
+      phone: "+52 329 555 0142",
+    },
+  });
   const member = await db.member.create({
     data: { name: "James Whitfield", email: "james.whitfield@example.com" },
   });

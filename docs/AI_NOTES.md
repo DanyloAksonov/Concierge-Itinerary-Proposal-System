@@ -63,3 +63,9 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - My review: the single `proposalService` also served reservations. Split into `lib/reservations/service.ts` (own service + `toReservationDto`, reused by the proposal DTO); tests regrouped by module with a shared `tests/helpers/test-db.ts`. Re-verified: 55 tests, lint, typecheck, curl smoke test.
 - My review: noticed the dashboard acts for a concierge the data model doesn't know about. AI laid out the options (no entity / own table / shared `users` with roles); I decided on a separate `concierges` table, as its own phase (Phase 3) before the dashboard.
 - My decision: audit timestamps on all entities, `updated_at` only where rows change. AI proposed the per-table split (skip `updated_at` on replaced items and the append-only email log; keep `sent_at` instead of a duplicate `created_at`) and added it as a new migration (`init` is already on `main`), with `@default(now())` so existing rows backfill. Verified with a test that `updated_at` moves on draft edits and on `updateMany` status changes.
+
+## Phase 3 — Concierge entity
+
+- AI added `concierges` + required `proposals.concierge_id`, `getCurrentConcierge()` as the single stand-in for a future session lookup (clients can't send a concierge id — unknown body keys are already a 400), concierge in proposal responses, `conciergeName` in the list, and an email signature.
+- Prisma's generated migration would fail on any DB that already has proposals (required column, no default). AI hand-edited it with a conditional backfill (insert the seed concierge only if proposals exist; same email as the seed so the seed's upsert reuses it).
+- Verified by AI: built a DB at the Phase 2 state with 2 proposals, applied the new migration → both attributed, seed kept 1 concierge; fresh DB seeded twice → 1 concierge; 59 tests; curl (400 on `conciergeId` in body, concierge in detail/list, signed email).

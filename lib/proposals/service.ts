@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/client";
+import { getCurrentConcierge, toConciergeDto } from "@/lib/concierges/service";
 import { DomainError } from "@/lib/errors";
 import type { Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 import { toReservationDto } from "@/lib/reservations/service";
@@ -10,12 +11,16 @@ import type { CreateProposalInput, DraftChanges, ItemInput } from "./validation"
 const proposalInclude = {
   items: { orderBy: [{ scheduledAt: "asc" }, { id: "asc" }] },
   reservation: { include: { member: true } },
+  concierge: true,
 } satisfies Prisma.ProposalInclude;
 
 type ProposalRecord = Prisma.ProposalGetPayload<{ include: typeof proposalInclude }>;
-type ProposalSummaryRecord = Prisma.ProposalGetPayload<{
-  include: { items: { select: { priceCents: true } } };
-}>;
+const proposalSummaryInclude = {
+  items: { select: { priceCents: true } },
+  concierge: { select: { name: true } },
+} satisfies Prisma.ProposalInclude;
+
+type ProposalSummaryRecord = Prisma.ProposalGetPayload<{ include: typeof proposalSummaryInclude }>;
 
 // --- DTOs: the public shape shared by the API and Server Components (internal ids stay internal).
 
@@ -38,6 +43,7 @@ function toProposalDto(proposal: ProposalRecord) {
     })),
     totalCents: totalCents(proposal.items),
     ...toReservationDto(proposal.reservation),
+    concierge: toConciergeDto(proposal.concierge),
   };
 }
 
@@ -45,6 +51,7 @@ function toProposalSummaryDto(proposal: ProposalSummaryRecord) {
   return {
     id: proposal.publicId,
     reservationId: proposal.reservationId,
+    conciergeName: proposal.concierge.name,
     status: proposal.status,
     itemCount: proposal.items.length,
     totalCents: totalCents(proposal.items),
@@ -102,7 +109,7 @@ export function createProposalService(db: PrismaClient) {
 
   async function listProposals() {
     const proposals = await db.proposal.findMany({
-      include: { items: { select: { priceCents: true } } },
+      include: proposalSummaryInclude,
       orderBy: { createdAt: "desc" },
     });
     return { proposals: proposals.map(toProposalSummaryDto) };
@@ -118,9 +125,15 @@ export function createProposalService(db: PrismaClient) {
       throw new DomainError("NOT_FOUND", `Reservation ${input.reservationId} was not found.`);
     }
     assertItemsWithinStay(input.items, reservation);
+    const concierge = await getCurrentConcierge(db);
 
     const proposal = await db.proposal.create({
-      data: { reservationId: reservation.id, note: input.note, items: { create: input.items } },
+      data: {
+        reservationId: reservation.id,
+        conciergeId: concierge.id,
+        note: input.note,
+        items: { create: input.items },
+      },
       include: proposalInclude,
     });
     return toProposalDto(proposal);

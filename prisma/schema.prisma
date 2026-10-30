@@ -34,6 +34,20 @@ model Member {
   @@map("members")
 }
 
+/// Staff member who prepares proposals. Kept separate from members: different role and relations.
+model Concierge {
+  id        Int        @id @default(autoincrement())
+  name      String
+  title     String
+  email     String     @unique
+  phone     String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
+  proposals Proposal[]
+
+  @@map("concierges")
+}
+
 /// Trip dates are destination-local calendar dates (YYYY-MM-DD) interpreted in `timeZone`.
 model Reservation {
   id            Int        @id @default(autoincrement())
@@ -57,6 +71,8 @@ model Proposal {
   publicId      String         @unique @default(nanoid()) @map("public_id")
   reservationId Int            @map("reservation_id")
   reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  conciergeId   Int            @map("concierge_id")
+  concierge     Concierge      @relation(fields: [conciergeId], references: [id])
   status        ProposalStatus @default(draft)
   note          String?
   createdAt     DateTime       @default(now()) @map("created_at")
@@ -68,6 +84,7 @@ model Proposal {
   emails        SentEmail[]
 
   @@index([reservationId, status])
+  @@index([conciergeId])
   @@map("proposals")
 }
 
