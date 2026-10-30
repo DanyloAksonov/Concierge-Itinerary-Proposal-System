@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isWithinStay, totalCents } from "@/lib/proposals/rules";
+import { isWithinStay, nightsOf, stayDays, totalCents } from "@/domain/proposals/rules";
 
 const stay = { arrivalDate: "2027-03-15", departureDate: "2027-03-22" };
 
@@ -22,5 +22,29 @@ describe("totalCents", () => {
       129_999,
     );
     expect(totalCents([])).toBe(0);
+  });
+});
+
+describe("stayDays and nightsOf", () => {
+  it("lists every day from arrival to departure and counts the nights", () => {
+    expect(stayDays(stay)).toEqual([
+      "2027-03-15",
+      "2027-03-16",
+      "2027-03-17",
+      "2027-03-18",
+      "2027-03-19",
+      "2027-03-20",
+      "2027-03-21",
+      "2027-03-22",
+    ]);
+    expect(nightsOf(stay)).toBe(7);
+  });
+
+  it("crosses month boundaries", () => {
+    expect(stayDays({ arrivalDate: "2027-02-27", departureDate: "2027-03-01" })).toEqual([
+      "2027-02-27",
+      "2027-02-28",
+      "2027-03-01",
+    ]);
   });
 });

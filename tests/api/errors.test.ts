@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { errorResponse, withErrorHandling } from "@/lib/api/errors";
-import { DomainError, type ErrorCode } from "@/lib/errors";
+import { DomainError, type ErrorCode } from "@/domain/errors";
 
 afterEach(() => vi.restoreAllMocks());
 

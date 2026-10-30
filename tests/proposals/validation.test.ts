@@ -3,7 +3,7 @@ import {
   createProposalSchema,
   itemInputSchema,
   updateProposalSchema,
-} from "@/lib/proposals/validation";
+} from "@/domain/proposals/validation";
 
 const item = {
   category: "DINING",

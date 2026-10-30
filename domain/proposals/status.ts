@@ -1,4 +1,4 @@
-import { DomainError } from "@/lib/errors";
+import { DomainError } from "@/domain/errors";
 import { ProposalStatus } from "@/lib/generated/prisma/enums";
 
 export { ProposalStatus };
