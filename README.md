@@ -2,7 +2,7 @@
 
 A lightweight tool for Exclusive Resorts concierges: build a curated itinerary for a member's upcoming stay, send it as a proposal, and let the member review, approve and "pay" to lock it in.
 
-> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity ✅ · concierge dashboard · member view · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
+> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity ✅ · concierge dashboard (built, browser pass pending) · member view · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ No `.env` file or database server is required. On a fresh clone:
 
 - **Engine:** SQLite file at `data/app.db` (git-ignored), accessed through **Prisma 7** with the `better-sqlite3` driver adapter.
 - **Schema:** [`prisma/schema.prisma`](prisma/schema.prisma) is the source of truth. Tables and columns are snake_case in SQLite (`members`, `reservations`, `concierges`, `proposals`, `proposal_items`, `sent_emails`).
-- **Who prepared a proposal:** every proposal belongs to a concierge (`proposals.concierge_id`). There is no login yet, so the server attributes new proposals to the current concierge itself (`getCurrentConcierge()` in `lib/concierges/service.ts`, the single place a session lookup will go); clients never send a concierge id. Members and concierges are separate tables — different roles and relations.
+- **Who prepared a proposal:** every proposal belongs to a concierge (`proposals.concierge_id`). There is no login yet, so the server attributes new proposals to the current concierge itself (`getCurrentConcierge()` in `domain/concierges/service.ts`, the single place a session lookup will go); clients never send a concierge id. Members and concierges are separate tables — different roles and relations.
 - **Migrations:** SQL files in [`prisma/migrations/`](prisma/migrations), committed to the repo. Prisma records which ones were applied in a `_prisma_migrations` table.
 - **Audit timestamps:** every table has `created_at`; tables whose rows change after creation (`members`, `reservations`, `concierges`, `proposals`) also have `updated_at`, set by Prisma on every update. `proposal_items` are replaced, never edited, and `sent_emails` is an append-only log whose `sent_at` is its creation time.
 
@@ -172,17 +172,19 @@ Tests live in [`tests/`](tests):
 
 ```
 app/                    Next.js App Router (pages, route handlers)
-  _src/                 UI components (private folder, not routed)
-    common/ui/          shadcn/ui components
-    concierge/          concierge dashboard components
-    member/             member view components
-lib/
-  api/                  route-handler helpers: error mapping, body parsing
-  db/                   Prisma client and database URL
-  proposals/            proposal domain: service, status machine, rules, validation, email
-  reservations/         reservation domain: service
+  _src/                 UI (private folder, not routed)
+    common/components/  shared and shadcn/ui components, one folder each (<Name>/index.tsx)
+    concierge/components/  concierge dashboard components
+    member/components/     member view components
+domain/                 business logic, one folder per entity
+  proposals/            service, status machine, rules, validation, email, categories
+  reservations/         service
   concierges/           concierge DTO + current-concierge resolver
   errors.ts             DomainError (business-rule failures)
+lib/                    infrastructure and generic helpers
+  api/                  route-handler helpers: error mapping, body parsing
+  db/                   Prisma client and database URL
+  format.ts             money and date formatting
   generated/prisma/     generated Prisma client (git-ignored)
 prisma/                 schema, migrations, seed
 tests/                  Vitest tests, grouped by module
