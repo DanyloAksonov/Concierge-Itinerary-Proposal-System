@@ -5,6 +5,9 @@ export { ProposalStatus };
 
 export const PROPOSAL_STATUSES = Object.values(ProposalStatus);
 
+/** Statuses a proposal can move *to* — nothing ever goes back to draft. */
+export type TargetStatus = Exclude<ProposalStatus, "draft">;
+
 // The workflow is strictly linear, so each status has at most one successor.
 const NEXT_STATUS: Record<ProposalStatus, ProposalStatus | null> = {
   draft: "sent",
@@ -21,7 +24,10 @@ export function canTransition(from: ProposalStatus, to: ProposalStatus): boolean
   return NEXT_STATUS[from] === to;
 }
 
-export function assertTransition(from: ProposalStatus, to: ProposalStatus): void {
+export function assertTransition(
+  from: ProposalStatus,
+  to: ProposalStatus,
+): asserts to is TargetStatus {
   if (!canTransition(from, to)) {
     throw new DomainError(
       "INVALID_TRANSITION",

@@ -27,6 +27,8 @@ model Member {
   id           Int           @id @default(autoincrement())
   name         String
   email        String        @unique
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at")
   reservations Reservation[]
 
   @@map("members")
@@ -42,6 +44,8 @@ model Reservation {
   timeZone      String     @map("time_zone")
   arrivalDate   String     @map("arrival_date")
   departureDate String     @map("departure_date")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at")
   proposals     Proposal[]
 
   @@index([memberId])
@@ -56,6 +60,7 @@ model Proposal {
   status        ProposalStatus @default(draft)
   note          String?
   createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
   sentAt        DateTime?      @map("sent_at")
   approvedAt    DateTime?      @map("approved_at")
   paidAt        DateTime?      @map("paid_at")
@@ -76,6 +81,7 @@ model ProposalItem {
   description String       @default("")
   scheduledAt String       @map("scheduled_at")
   priceCents  Int          @map("price_cents")
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   @@index([proposalId, scheduledAt])
   @@map("proposal_items")

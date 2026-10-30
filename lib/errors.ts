@@ -3,6 +3,7 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "INVALID_TRANSITION"
   | "CONFLICT"
+  | "RULE_VIOLATION"
   | "INTERNAL";
 
 /** An expected business-rule failure; the API layer maps `code` to an HTTP status. */

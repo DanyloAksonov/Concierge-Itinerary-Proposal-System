@@ -55,20 +55,21 @@ proposal_items    id PK, proposal_id FK→proposals (ON DELETE CASCADE), categor
 sent_emails       id PK, proposal_id FK→proposals, to_email, subject, body_preview, sent_at
 ```
 Indexes: `proposals(reservation_id, status)`, `proposal_items(proposal_id, scheduled_at)`.
+**Audit timestamps rule:** every table gets `created_at`; `updated_at` (`@default(now()) @updatedAt`) only where rows are modified after creation — `members`, `reservations`, `proposals`. Skipped for `proposal_items` (replaced, never edited) and `sent_emails` (append-only; `sent_at` is its creation time). `@updatedAt` is set by the Prisma client, so all writes go through Prisma. New tables follow the same rule.
 Seed (idempotent): James Whitfield (`james.whitfield@example.com`), reservation Villa Punta Mita, Punta Mita, Mexico, 2027-03-15 → 2027-03-22.
 
 ## API contract (Route Handlers)
 
-All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUND" | "INVALID_TRANSITION" | "CONFLICT" | "INTERNAL", "message": string, "details"?: unknown } }`.
+All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUND" | "INVALID_TRANSITION" | "CONFLICT" | "RULE_VIOLATION" | "INTERNAL", "message": string, "details"?: unknown } }` → 400 / 404 / 409 / 409 / 422 / 500. Response `id` of a proposal is always its `publicId`; the numeric PK never leaves the server.
 
 | Method & path | Body | Success | Errors |
 |---|---|---|---|
 | `GET /api/reservations` | — | 200 `{ reservations: [{ reservation, member }] }` | — |
-| `POST /api/proposals` | `{ reservationId, note?, items: Item[] }` | 201 proposal (status `draft`) with items + total | 400, 422, 404 reservation |
-| `GET /api/proposals` | — | 200 list: id, publicId, status, itemCount, totalCents, timestamps | — |
+| `POST /api/proposals` | `{ reservationId, note?, items?: Item[] }` | 201 proposal (status `draft`) with items + total, `Location` header | 400, 422, 404 reservation |
+| `GET /api/proposals` | — | 200 `{ proposals: [{ id, reservationId, status, itemCount, totalCents, timestamps }] }` | — |
 | `GET /api/proposals/[id]` | — | 200 proposal + items (sorted by scheduled_at) + totalCents + reservation + member | 404 |
-| `PATCH /api/proposals/[id]` | `{ status }` and/or (draft only) `{ note, items }` | 200 updated proposal | 400, 422, 404, 409 |
-| `POST /api/proposals/[id]/send` | — | 200 proposal (status `sent`) + email record | 404, 409 (not draft / no items) |
+| `PATCH /api/proposals/[id]` | **either** `{ status }` **or** (draft only) `{ note?, items? }` — both → 400 | 200 updated proposal | 400, 422, 404, 409 |
+| `POST /api/proposals/[id]/send` | — | 200 `{ proposal, email }` | 404, 409 (not draft / no items) |
 
 Agreed rules (kickoff review):
 - **400** `VALIDATION_ERROR` = malformed JSON / wrong shape (Zod). **422** = domain rule failed (e.g. item outside stay dates).
@@ -79,7 +80,9 @@ Agreed rules (kickoff review):
 - No auth (documented): `publicId` is the member's capability link; concierge endpoints would sit behind auth in production.
 - Range check: arrival 00:00 ≤ scheduled_at ≤ departure 23:59, both days inclusive; plain string comparison on local wall time.
 
-Route handlers stay thin: parse + validate (Zod) → call `lib/proposals/service.ts` → map domain errors to HTTP. One shared error-mapping helper. Never leak stack traces.
+**Next 16 + Cache Components:** every `GET` handler / Server Component that reads the DB must `await connection()` first — verified: without it `next build` prerenders `/api/reservations` as static and freezes the seed data.
+
+Route handlers stay thin: parse + validate (Zod) → call the module's service (`lib/proposals/service.ts`, `lib/reservations/service.ts`) → map domain errors to HTTP. One service per domain module; a module may reuse another's DTO mapper (proposals embed `toReservationDto`), never its service internals. One shared error-mapping helper. Never leak stack traces.
 
 Reads in Server Components call the service layer directly (no fetch to own API). **All mutations from the UI go through the Route Handlers** (client components + typed fetch wrapper + `router.refresh()`), so the graded API is the one the UI exercises. No Server Actions.
 
@@ -97,12 +100,16 @@ lib/
   db/client.ts                    PrismaClient (adapter) + createPrisma(url) for tests
   db/url.ts                       DATABASE_URL shared by CLI config and runtime
   generated/prisma/               generated client (git-ignored)
-  proposals/service.ts            business logic
+  proposals/service.ts            proposal business logic + DTOs
+  reservations/service.ts         reservation listing + toReservationDto
   proposals/status.ts             state machine
   proposals/categories.ts         fixed category list + suggestions
   errors.ts                       DomainError (code → HTTP mapping lives in api/errors.ts)
   proposals/validation.ts         Zod schemas
-  api/errors.ts                   domain error → HTTP mapping
+  api/errors.ts                   domain error → HTTP mapping + withErrorHandling wrapper
+  api/request.ts                  parseBody (JSON + Zod → 400), requestOrigin
+  proposals/rules.ts              isWithinStay, totalCents (pure)
+  proposals/email.ts              composes the simulated proposal email
   format.ts                       money/date formatting
 app/_src/                         components (private folder: `_` keeps it out of routing)
   common/                         shared components
@@ -111,7 +118,7 @@ app/_src/                         components (private folder: `_` keeps it out o
   member/                         ItineraryHeader, DayTimeline, ItemCard, TotalBar, ConfirmationScreen
 prisma/
   schema.prisma, migrations/ (committed), seed.ts
-tests/                            vitest unit tests
+tests/                            vitest, grouped by module (proposals/, reservations/); helpers/test-db.ts gives each test a migrated SQLite copy
 prisma.config.ts                  schema/migrations/seed/datasource config
 docs/TASK.md (git-ignored), docs/AI_NOTES.md
 ```
@@ -129,7 +136,7 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 - **Actions:** two-step stepper "1 Approve → 2 Pay & Lock In"; only the valid step is enabled, the disabled one says why. Status changes announced via `role="status"`.
 - **Confirmation** is the paid state of the same route (reload / reopening the email link still shows it), same visual style.
 - **Draft at the member URL** (concierge "open as member"): render with a "Preview — not yet sent to member" banner and no actions.
-- **Concierge card:** static `CONCIERGE` config (name, title, email, phone) with an initials monogram — no stock face photo. (BACKLOG #2)
+- **Concierge card:** from the proposal's concierge (Phase 3) with an initials monogram — no stock face photo. (Photo: BACKLOG #2)
 - **Photos:** generic Pacific-coast / beach-villa photos (Unsplash licence, photographers credited in README); alt text and captions don't claim they are Punta Mita.
   - Stored in a **public Cloudflare R2 bucket**, not in the repo. Gallery = fixed list in code (`key`, `alt`, `credit`); URL = `ASSETS_BASE_URL` + key. `ASSETS_BASE_URL` has a committed default (public URL, not a secret) so a clean clone works without env setup; `next.config.ts` derives `images.remotePatterns` from it.
   - One-off `scripts/upload-images.ts` (`@aws-sdk/client-s3` against R2's S3 API) reads `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` from `.env.local` (git-ignored). The app never holds write credentials.
@@ -142,14 +149,15 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 - **Accessibility** is part of my profile — do it properly: semantic landmarks, one `h1`, labelled inputs, visible focus, keyboard-operable dialogs (focus trap, Esc, focus return), status changes announced (`role="status"`), AA contrast.
 - Loading (`loading.tsx`), error (`error.tsx`) and `not-found` states for both routes. `generateMetadata` for the member page (title: "Your Punta Mita Itinerary").
 
-## Plan (stop after each phase)
+## Plan (stop after each phase; one branch per phase, PR into `main`, merge commit — no squash)
 
 1. **Setup & data** (~45 min): create-next-app, Tailwind, shadcn init, Prisma schema + migration, migrate + idempotent seed run automatically (`predev`), status machine + unit tests.
 2. **API** (~60 min): service layer, all 6 endpoints, Zod, error mapping, transaction on send. Verify each route with curl, including error cases (invalid transition, not found, item outside stay dates).
-3. **Concierge dashboard** (~75 min).
-4. **Member view** (~60 min).
-5. **README + full-loop check** (~30 min).
-6. **Stretch (if time), in this order:** concierge note → day-by-day timeline (if not already) → edit draft → optimistic UI → animation on confirmation.
+3. **Concierge entity** (`feat/concierge`): `concierges` table (id, name, title, email, phone), seeded with one concierge; `proposals.concierge_id` (required FK) set on create. No auth — the server resolves the acting concierge via one `getCurrentConcierge()` (stand-in for a future session lookup); clients never send a concierge id. Proposal responses include `concierge`; the member-page card and email signature read from it. Keep `members` and `concierges` as separate tables (different roles and relations); a shared login identity (`accounts`) only comes with auth (BACKLOG #3).
+4. **Concierge dashboard** (~75 min).
+5. **Member view** (~60 min).
+6. **README + full-loop check** (~30 min).
+7. **Stretch (if time), in this order:** concierge note → day-by-day timeline (if not already) → edit draft → optimistic UI → animation on confirmation.
 
 ## Definition of done
 
