@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProposalService } from "@/lib/proposals/service";
 import type { ItemInput } from "@/lib/proposals/validation";
-import { type TestDb, createTestDb, seedStay } from "../helpers/test-db";
+import { type TestDb, createTestDb, seedScenario } from "../helpers/test-db";
 
 const BASE_URL = "http://localhost:3000";
 
@@ -28,7 +28,7 @@ let reservationId: number;
 beforeEach(async () => {
   ({ db, cleanup } = createTestDb());
   service = createProposalService(db);
-  reservationId = (await seedStay(db)).id;
+  reservationId = (await seedScenario(db)).id;
   vi.spyOn(console, "log").mockImplementation(() => {}); // keep the simulated email out of test output
 });
 
@@ -49,6 +49,23 @@ describe("createProposal", () => {
     expect(proposal.items.map((item) => item.title)).toEqual(["Surf lesson", "Private chef dinner"]);
     expect(proposal.totalCents).toBe(145_000);
     expect(proposal.member.name).toBe("James Whitfield");
+  });
+
+  it("attributes the proposal to the current concierge", async () => {
+    const proposal = await createDraft();
+
+    expect(proposal.concierge).toEqual({
+      name: "Sofia Navarro",
+      title: "Senior Concierge, Punta Mita",
+      email: "sofia.navarro@example.com",
+      phone: "+52 329 555 0142",
+    });
+  });
+
+  it("fails loudly when no concierge exists (unseeded database)", async () => {
+    await db.concierge.deleteMany();
+
+    await expect(createDraft()).rejects.toThrow("No concierge found");
   });
 
   it("rejects items outside the stay with RULE_VIOLATION", async () => {
@@ -78,6 +95,7 @@ describe("sendProposal", () => {
     expect(email.toEmail).toBe("james.whitfield@example.com");
     expect(email.bodyPreview).toContain(`${BASE_URL}/proposal/${draft.id}`);
     expect(email.bodyPreview).toContain("$1,450.00");
+    expect(email.bodyPreview).toContain("Sofia Navarro\nSenior Concierge, Punta Mita");
     expect(await db.sentEmail.count()).toBe(1);
   });
 
@@ -204,7 +222,13 @@ describe("listProposals", () => {
     const { proposals } = await service.listProposals();
 
     expect(proposals).toEqual([
-      expect.objectContaining({ id: draft.id, status: "draft", itemCount: 2, totalCents: 145_000 }),
+      expect.objectContaining({
+        id: draft.id,
+        conciergeName: "Sofia Navarro",
+        status: "draft",
+        itemCount: 2,
+        totalCents: 145_000,
+      }),
     ]);
   });
 });

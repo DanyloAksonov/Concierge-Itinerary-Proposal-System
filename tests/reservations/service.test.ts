@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createReservationService } from "@/lib/reservations/service";
-import { type TestDb, createTestDb, seedStay } from "../helpers/test-db";
+import { type TestDb, createTestDb, seedScenario } from "../helpers/test-db";
 
 let db: TestDb;
 let cleanup: () => Promise<void>;
@@ -13,7 +13,7 @@ afterEach(() => cleanup());
 
 describe("listReservations", () => {
   it("returns each reservation with its member, without internal member ids", async () => {
-    const reservation = await seedStay(db);
+    const reservation = await seedScenario(db);
 
     const { reservations } = await createReservationService(db).listReservations();
 

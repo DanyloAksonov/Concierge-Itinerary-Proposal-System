@@ -32,6 +32,12 @@ describe("itemInputSchema", () => {
 });
 
 describe("createProposalSchema", () => {
+  it("rejects a client-supplied concierge — the server decides who is acting", () => {
+    expect(
+      createProposalSchema.safeParse({ reservationId: 1, conciergeId: 2, items: [] }).success,
+    ).toBe(false);
+  });
+
   it("defaults items to [] and turns an empty note into null", () => {
     expect(createProposalSchema.parse({ reservationId: 1, note: "  " })).toEqual({
       reservationId: 1,
