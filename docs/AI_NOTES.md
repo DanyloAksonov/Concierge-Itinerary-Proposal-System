@@ -41,3 +41,8 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 
 - Design brief came from a separate Claude chat (style of a luxury real-estate listing page); AI rendered the screenshot, checked the palette contrast (white/gold text fails AA → gold only as fill behind charcoal) and confirmed 2027-03-15 is a Monday.
 - My decisions: photos served from a public Cloudflare R2 bucket (production-like) but kept as simple as possible — gallery list in code, DB-managed photos deferred. Deferred items are tracked in `docs/BACKLOG.md`.
+
+### README v1 + DB scripts
+
+- AI tried `prisma migrate reset --force` to check whether Prisma 7 still seeds after a reset. Prisma's own guard detected an AI agent and refused without user consent; AI stopped, explained the command, impact (dev DB only, seed data only) and options, and ran it only after my explicit "Yes, reset the DB" (passed via `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION`).
+- Finding: Prisma 7 `migrate reset` does **not** seed → `db:reset` chains `prisma db seed`. Also confirmed `migrate dev` still regenerates the client.
