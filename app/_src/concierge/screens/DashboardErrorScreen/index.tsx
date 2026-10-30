@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { Button } from "@/app/_src/common/components/Button";
 
-export default function DashboardError({ error, retry }: { error: unknown; retry: () => void }) {
+export function DashboardErrorScreen({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
