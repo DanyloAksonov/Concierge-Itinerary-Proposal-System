@@ -1,8 +1,8 @@
 import { connection } from "next/server";
 import { withErrorHandling } from "@/lib/api/errors";
 import { parseBody, requestOrigin } from "@/lib/api/request";
-import { proposalService } from "@/lib/proposals/service";
-import { updateProposalSchema } from "@/lib/proposals/validation";
+import { proposalService } from "@/domain/proposals/service";
+import { updateProposalSchema } from "@/domain/proposals/validation";
 
 type Context = RouteContext<"/api/proposals/[id]">;
 

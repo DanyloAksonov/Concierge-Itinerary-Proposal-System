@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createProposalService } from "@/lib/proposals/service";
-import type { ItemInput } from "@/lib/proposals/validation";
+import { createProposalService } from "@/domain/proposals/service";
+import type { ItemInput } from "@/domain/proposals/validation";
 import { type TestDb, createTestDb, seedScenario } from "../helpers/test-db";
 
 const BASE_URL = "http://localhost:3000";

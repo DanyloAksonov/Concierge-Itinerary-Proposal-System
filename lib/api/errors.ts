@@ -1,5 +1,5 @@
 import { unstable_rethrow } from "next/navigation";
-import { DomainError, type ErrorCode } from "@/lib/errors";
+import { DomainError, type ErrorCode } from "@/domain/errors";
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createReservationService } from "@/lib/reservations/service";
+import { createReservationService } from "@/domain/reservations/service";
 import { type TestDb, createTestDb, seedScenario } from "../helpers/test-db";
 
 let db: TestDb;

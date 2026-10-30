@@ -1,8 +1,9 @@
+import "server-only";
 import { prisma } from "@/lib/db/client";
-import { getCurrentConcierge, toConciergeDto } from "@/lib/concierges/service";
-import { DomainError } from "@/lib/errors";
+import { getCurrentConcierge, toConciergeDto } from "@/domain/concierges/service";
+import { DomainError } from "@/domain/errors";
 import type { Prisma, PrismaClient } from "@/lib/generated/prisma/client";
-import { toReservationDto } from "@/lib/reservations/service";
+import { toReservationDto } from "@/domain/reservations/service";
 import { composeProposalEmail } from "./email";
 import { isWithinStay, totalCents } from "./rules";
 import { type ProposalStatus, type TargetStatus, assertTransition } from "./status";

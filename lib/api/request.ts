@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { DomainError } from "@/lib/errors";
+import { DomainError } from "@/domain/errors";
 
 // A cross-site HTML form can only send form, multipart or text/plain bodies without a CORS
 // preflight, so requiring application/json shuts that door before cookie-based auth exists.

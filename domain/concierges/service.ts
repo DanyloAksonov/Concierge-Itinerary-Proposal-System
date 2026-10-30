@@ -1,3 +1,5 @@
+import "server-only";
+import { prisma } from "@/lib/db/client";
 import type { Concierge, Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 
 /** Public shape of a concierge — contact details the member may see; no internal id. */
@@ -29,3 +31,13 @@ export async function getCurrentConcierge(db: PrismaClient | Prisma.TransactionC
   }
   return concierge;
 }
+
+export function createConciergeService(db: PrismaClient) {
+  async function getCurrent() {
+    return toConciergeDto(await getCurrentConcierge(db));
+  }
+
+  return { getCurrent };
+}
+
+export const conciergeService = createConciergeService(prisma);

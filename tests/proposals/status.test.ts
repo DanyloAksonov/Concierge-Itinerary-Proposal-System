@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DomainError } from "@/lib/errors";
+import { DomainError } from "@/domain/errors";
 import {
   PROPOSAL_STATUSES,
   type ProposalStatus,
   assertTransition,
   canTransition,
   nextStatus,
-} from "@/lib/proposals/status";
+} from "@/domain/proposals/status";
 
 const ALLOWED: Array<[ProposalStatus, ProposalStatus]> = [
   ["draft", "sent"],

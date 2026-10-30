@@ -1,8 +1,8 @@
 import { connection } from "next/server";
 import { withErrorHandling } from "@/lib/api/errors";
 import { parseBody } from "@/lib/api/request";
-import { proposalService } from "@/lib/proposals/service";
-import { createProposalSchema } from "@/lib/proposals/validation";
+import { proposalService } from "@/domain/proposals/service";
+import { createProposalSchema } from "@/domain/proposals/validation";
 
 export const GET = withErrorHandling(async () => {
   await connection(); // DB read: always render at request time, never prerender
