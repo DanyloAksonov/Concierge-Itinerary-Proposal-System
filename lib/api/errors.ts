@@ -3,6 +3,7 @@ import { DomainError, type ErrorCode } from "@/lib/errors";
 
 const HTTP_STATUS: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
+  UNSUPPORTED_MEDIA_TYPE: 415,
   NOT_FOUND: 404,
   INVALID_TRANSITION: 409,
   CONFLICT: 409,
