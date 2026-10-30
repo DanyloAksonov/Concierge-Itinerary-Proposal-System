@@ -1,0 +1,31 @@
+# dependencies
+/node_modules
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# local database
+/data/*.db
+/data/*.db-*
+
+# env
+.env*
+
+# private / local-only material
+/_local/
+/docs/TASK.md
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# generated Prisma client (rebuilt on postinstall)
+/lib/generated/
