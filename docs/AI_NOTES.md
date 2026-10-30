@@ -45,4 +45,21 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 ### README v1 + DB scripts
 
 - AI tried `prisma migrate reset --force` to check whether Prisma 7 still seeds after a reset. Prisma's own guard detected an AI agent and refused without user consent; AI stopped, explained the command, impact (dev DB only, seed data only) and options, and ran it only after my explicit "Yes, reset the DB" (passed via `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION`).
-- Finding: Prisma 7 `migrate reset` does **not** seed → `db:reset` chains `prisma db seed`. Also confirmed `migrate dev` still regenerates the client.
+- Finding: Prisma 7 `migrate reset` does **not** seed → `db:reset` chains `prisma db seed`. ~~Also confirmed `migrate dev` still regenerates the client.~~ **Wrong** — AI had only checked the help text and a no-op run. The first real schema change (audit timestamps) showed Prisma 7's `migrate dev` does not run `generate`; fixed `db:migrate` to `prisma generate && prisma migrate dev` (generate first so `-- --name x` reaches `migrate dev`) and corrected the README.
+
+## Phase 2 — API
+
+- AI wrote the service layer, Zod schemas, error mapping and the 6 route handlers; I reviewed the API contract decisions:
+  - PATCH is **either** a status change **or** a draft edit (both → 400) instead of "and/or" — one request, one meaning.
+  - New `RULE_VIOLATION` code for 422 (item outside the stay).
+  - Responses expose the `publicId` as `id`; numeric PKs never leave the server.
+- AI read the bundled Next 16 docs first and caught a Cache Components pitfall: a DB-reading `GET` handler without `await connection()` is **prerendered at build time** (verified: `/api/reservations` became static `○` without it).
+- Bug AI introduced and then caught from the build log: the `withErrorHandling` try/catch swallowed Next's internal prerender-bailout signal from `connection()`. Fixed with `unstable_rethrow` (per the Next docs).
+- Verified by AI:
+  - 53 tests (unit + service tests on a real migrated SQLite copy per test).
+  - Mutation check: removing the `WHERE status = <from>` guard makes the concurrency test fail; restoring it passes (10/10 runs stable).
+  - curl against `npm run dev` on a throwaway DB: every endpoint and every error case (400 malformed/invalid, 404, 409 transitions/edits/empty send, 422 outside stay, 405), parallel approvals over HTTP (one 200, one 409), one email row per sent proposal, email logged to console.
+  - `npm run build` + `npm start` (prestart DB setup, error mapping in production mode).
+- My review: the single `proposalService` also served reservations. Split into `lib/reservations/service.ts` (own service + `toReservationDto`, reused by the proposal DTO); tests regrouped by module with a shared `tests/helpers/test-db.ts`. Re-verified: 55 tests, lint, typecheck, curl smoke test.
+- My review: noticed the dashboard acts for a concierge the data model doesn't know about. AI laid out the options (no entity / own table / shared `users` with roles); I decided on a separate `concierges` table, as its own phase (Phase 3) before the dashboard.
+- My decision: audit timestamps on all entities, `updated_at` only where rows change. AI proposed the per-table split (skip `updated_at` on replaced items and the append-only email log; keep `sent_at` instead of a duplicate `created_at`) and added it as a new migration (`init` is already on `main`), with `@default(now())` so existing rows backfill. Verified with a test that `updated_at` moves on draft edits and on `updateMany` status changes.
