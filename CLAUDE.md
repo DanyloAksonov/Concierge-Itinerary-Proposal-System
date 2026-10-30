@@ -61,7 +61,7 @@ Seed (idempotent): James Whitfield (`james.whitfield@example.com`), reservation 
 
 ## API contract (Route Handlers)
 
-All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUND" | "INVALID_TRANSITION" | "CONFLICT" | "RULE_VIOLATION" | "INTERNAL", "message": string, "details"?: unknown } }` → 400 / 404 / 409 / 409 / 422 / 500. Response `id` of a proposal is always its `publicId`; the numeric PK never leaves the server.
+All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUND" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_TRANSITION" | "CONFLICT" | "RULE_VIOLATION" | "INTERNAL", "message": string, "details"?: unknown } }` → 400 / 404 / 415 / 409 / 409 / 422 / 500. Bodies must be `Content-Type: application/json` (415 otherwise — blocks cross-site form posts). A proposal's `id` in responses is always its `publicId`, never its PK; item and reservation ids are plain integers (they grant no access).
 
 | Method & path | Body | Success | Errors |
 |---|---|---|---|
@@ -155,7 +155,7 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 
 1. **Setup & data** (~45 min): create-next-app, Tailwind, shadcn init, Prisma schema + migration, migrate + idempotent seed run automatically (`predev`), status machine + unit tests.
 2. **API** (~60 min): service layer, all 6 endpoints, Zod, error mapping, transaction on send. Verify each route with curl, including error cases (invalid transition, not found, item outside stay dates).
-3. ✅ **Concierge entity** (`feat/concierge`): `concierges` table (id, name, title, email, phone), seeded with one concierge; `proposals.concierge_id` (required FK) set on create. No auth — the server resolves the acting concierge via one `getCurrentConcierge()` (stand-in for a future session lookup); clients never send a concierge id. Proposal responses include `concierge`; the member-page card and email signature read from it. Keep `members` and `concierges` as separate tables (different roles and relations); a shared login identity (`accounts`) only comes with auth (BACKLOG #3).
+3. ✅ **Concierge entity** (`feat/concierge`): `concierges` table (id, name, title, email, phone), seeded with one concierge; `proposals.concierge_id` (required FK) set on create. No auth — the server resolves the acting concierge via one `getCurrentConcierge()` (stand-in for a future session lookup), looked up by `CURRENT_CONCIERGE_EMAIL` (default: the seeded concierge) — never "the first row"; clients never send a concierge id. Proposal responses include `concierge`; the member-page card and email signature read from it. Keep `members` and `concierges` as separate tables (different roles and relations); a shared login identity (`accounts`) only comes with auth (BACKLOG #3).
 4. **Concierge dashboard** (~75 min).
 5. **Member view** (~60 min).
 6. **README + full-loop check** (~30 min).
