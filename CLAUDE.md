@@ -45,8 +45,9 @@ Context for Claude Code. Read this file and `docs/TASK.md` (the original assignm
 
 ```
 members           id PK, name, email (unique)
+concierges        id PK, name, title, email (unique), phone
 reservations      id PK, member_id FK→members, destination, villa, time_zone (IANA), arrival_date (YYYY-MM-DD), departure_date
-proposals         id PK, public_id (unique), reservation_id FK→reservations,
+proposals         id PK, public_id (unique), reservation_id FK→reservations, concierge_id FK→concierges,
                   status ('draft'|'sent'|'approved'|'paid'), note (nullable, stretch),
                   created_at, sent_at, approved_at, paid_at
 proposal_items    id PK, proposal_id FK→proposals (ON DELETE CASCADE), category, title,
@@ -54,8 +55,8 @@ proposal_items    id PK, proposal_id FK→proposals (ON DELETE CASCADE), categor
                   (ordered by scheduled_at, then id — no position column)
 sent_emails       id PK, proposal_id FK→proposals, to_email, subject, body_preview, sent_at
 ```
-Indexes: `proposals(reservation_id, status)`, `proposal_items(proposal_id, scheduled_at)`.
-**Audit timestamps rule:** every table gets `created_at`; `updated_at` (`@default(now()) @updatedAt`) only where rows are modified after creation — `members`, `reservations`, `proposals`. Skipped for `proposal_items` (replaced, never edited) and `sent_emails` (append-only; `sent_at` is its creation time). `@updatedAt` is set by the Prisma client, so all writes go through Prisma. New tables follow the same rule.
+Indexes: `proposals(reservation_id, status)`, `proposals(concierge_id)`, `proposal_items(proposal_id, scheduled_at)`.
+**Audit timestamps rule:** every table gets `created_at`; `updated_at` (`@default(now()) @updatedAt`) only where rows are modified after creation — `members`, `reservations`, `concierges`, `proposals`. Skipped for `proposal_items` (replaced, never edited) and `sent_emails` (append-only; `sent_at` is its creation time). `@updatedAt` is set by the Prisma client, so all writes go through Prisma. New tables follow the same rule.
 Seed (idempotent): James Whitfield (`james.whitfield@example.com`), reservation Villa Punta Mita, Punta Mita, Mexico, 2027-03-15 → 2027-03-22.
 
 ## API contract (Route Handlers)
@@ -66,8 +67,8 @@ All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUN
 |---|---|---|---|
 | `GET /api/reservations` | — | 200 `{ reservations: [{ reservation, member }] }` | — |
 | `POST /api/proposals` | `{ reservationId, note?, items?: Item[] }` | 201 proposal (status `draft`) with items + total, `Location` header | 400, 422, 404 reservation |
-| `GET /api/proposals` | — | 200 `{ proposals: [{ id, reservationId, status, itemCount, totalCents, timestamps }] }` | — |
-| `GET /api/proposals/[id]` | — | 200 proposal + items (sorted by scheduled_at) + totalCents + reservation + member | 404 |
+| `GET /api/proposals` | — | 200 `{ proposals: [{ id, reservationId, conciergeName, status, itemCount, totalCents, timestamps }] }` | — |
+| `GET /api/proposals/[id]` | — | 200 proposal + items (sorted by scheduled_at) + totalCents + reservation + member + concierge | 404 |
 | `PATCH /api/proposals/[id]` | **either** `{ status }` **or** (draft only) `{ note?, items? }` — both → 400 | 200 updated proposal | 400, 422, 404, 409 |
 | `POST /api/proposals/[id]/send` | — | 200 `{ proposal, email }` | 404, 409 (not draft / no items) |
 
@@ -102,6 +103,7 @@ lib/
   generated/prisma/               generated client (git-ignored)
   proposals/service.ts            proposal business logic + DTOs
   reservations/service.ts         reservation listing + toReservationDto
+  concierges/service.ts           toConciergeDto + getCurrentConcierge (future session lookup)
   proposals/status.ts             state machine
   proposals/categories.ts         fixed category list + suggestions
   errors.ts                       DomainError (code → HTTP mapping lives in api/errors.ts)
@@ -153,7 +155,7 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 
 1. **Setup & data** (~45 min): create-next-app, Tailwind, shadcn init, Prisma schema + migration, migrate + idempotent seed run automatically (`predev`), status machine + unit tests.
 2. **API** (~60 min): service layer, all 6 endpoints, Zod, error mapping, transaction on send. Verify each route with curl, including error cases (invalid transition, not found, item outside stay dates).
-3. **Concierge entity** (`feat/concierge`): `concierges` table (id, name, title, email, phone), seeded with one concierge; `proposals.concierge_id` (required FK) set on create. No auth — the server resolves the acting concierge via one `getCurrentConcierge()` (stand-in for a future session lookup); clients never send a concierge id. Proposal responses include `concierge`; the member-page card and email signature read from it. Keep `members` and `concierges` as separate tables (different roles and relations); a shared login identity (`accounts`) only comes with auth (BACKLOG #3).
+3. ✅ **Concierge entity** (`feat/concierge`): `concierges` table (id, name, title, email, phone), seeded with one concierge; `proposals.concierge_id` (required FK) set on create. No auth — the server resolves the acting concierge via one `getCurrentConcierge()` (stand-in for a future session lookup); clients never send a concierge id. Proposal responses include `concierge`; the member-page card and email signature read from it. Keep `members` and `concierges` as separate tables (different roles and relations); a shared login identity (`accounts`) only comes with auth (BACKLOG #3).
 4. **Concierge dashboard** (~75 min).
 5. **Member view** (~60 min).
 6. **README + full-loop check** (~30 min).
