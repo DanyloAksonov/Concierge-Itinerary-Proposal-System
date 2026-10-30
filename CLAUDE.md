@@ -91,8 +91,9 @@ Reads in Server Components call the service layer directly (no fetch to own API)
 
 ```
 app/
-  page.tsx                        concierge dashboard
-  proposal/[id]/page.tsx          member view (+ confirmation state)
+  concierge/page.tsx              concierge dashboard — internal (staff) URLs live under /concierge
+  proposal/[id]/page.tsx          member view (+ confirmation state) — external (member) URLs
+  (no page.tsx at the root: next.config.ts redirects / → /concierge, 307)
   api/reservations/route.ts
   api/proposals/route.ts
   api/proposals/[id]/route.ts
@@ -122,7 +123,10 @@ app/_src/                         UI (private folder: `_` keeps it out of routin
   concierge/utils/                        concierge-specific frontend helpers: member-link.ts
   concierge/components/<Name>/index.tsx   TripHeader, ItemForm, ItemList, ProposalBuilder, ProposalPreview,
                                           ProposalRowActions, ProposalsTable
-  member/components/<Name>/index.tsx      member view (Phase 5)
+  member/components/<Name>/index.tsx      member view building blocks
+  <module>/screens/<Name>Screen/index.tsx whole pages as plain components (DTO props only): DashboardScreen,
+                                          ProposalScreen, their Loading/Error/NotFound screens; common/screens
+                                          holds the app-wide NotFoundScreen
 prisma/
   schema.prisma, migrations/ (committed), seed.ts
 tests/                            vitest, grouped by module (proposals/, reservations/); helpers/test-db.ts gives each test a migrated SQLite copy
@@ -145,10 +149,11 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 - **Confirmation** is the paid state of the same route (reload / reopening the email link still shows it), same visual style.
 - **Draft at the member URL** (concierge "open as member"): render with a "Preview — not yet sent to member" banner and no actions.
 - **Concierge card:** from the proposal's concierge (Phase 3) with an initials monogram — no stock face photo. (Photo: BACKLOG #2)
-- **Photos:** generic Pacific-coast / beach-villa photos (Unsplash licence, photographers credited in README); alt text and captions don't claim they are Punta Mita.
-  - Stored in a **public Cloudflare R2 bucket**, not in the repo. Gallery = fixed list in code (`key`, `alt`, `credit`); URL = `ASSETS_BASE_URL` + key. `ASSETS_BASE_URL` has a committed default (public URL, not a secret) so a clean clone works without env setup; `next.config.ts` derives `images.remotePatterns` from it.
-  - One-off `scripts/upload-images.ts` (`@aws-sdk/client-s3` against R2's S3 API) reads `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` from `.env.local` (git-ignored). The app never holds write credentials.
-  - If an image fails to load, the gallery degrades (hide it) instead of showing broken images. DB-managed photos are BACKLOG #1.
+- **Photos (my call, replaces the earlier R2 plan):** six AI-generated placeholders (Google Gemini) in `public/images/*.webp`, statically imported into `next/image` (intrinsic size + blur placeholder for free). Originals are converted with `npm run images:optimize` (`scripts/optimize-images.ts`, sharp: WebP q80, max width 2000px for `hero-villa`/`confirmation`, 1200px otherwise; originals deleted).
+  - Gallery (`member/components/Gallery`): `hero-villa` 16:9 with `preload` (LCP; Next 16 replaced `priority` with `preload`) + `dining`, `spa`, `sailing`, `bonfire` thumbnails. Hidden once paid.
+  - Confirmation (`ConfirmationPanel`): `confirmation` is a decorative full-bleed background (`alt=""`, `preload`, since it is the main visual when paid); text sits on a white/90 card so contrast never depends on the photo.
+  - Every image has `sizes` matching the layout and `object-cover`. Alt text describes what the image actually shows and never claims it is the real property.
+  - Cloud storage / concierge-managed photos: BACKLOG #1.
 
 ## UX guidelines
 
@@ -178,6 +183,9 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 
 - Small, meaningful commits per phase (conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`).
 - **Helper placement rule:** a helper is *frontend-only* when it depends on the browser, React or Tailwind, or exists only to serve the UI (e.g. the fetch wrapper). Generic ones go in `app/_src/common/utils/`; ones tied to a module (concierge/member) in `app/_src/<module>/utils/`. Pure functions stay out of the UI folder even if only the UI calls them today — formatting in `lib/`, domain rules and validation in `domain/` — so the server and tests can use them. **`domain/` vs `lib/`:** business logic (services, rules, state machine, validation, email) lives in `domain/<entity>/`; infrastructure and generic helpers (DB client, HTTP helpers, formatting, generated client) in `lib/`. Every `domain/*/service.ts` starts with `import "server-only"`, so importing a service from a client component fails the build (verified); Vitest aliases `server-only` to the package's own no-op build. `cn` is imported straight from the `cn` package, like the shadcn components do.
+- **Internal vs external URLs:** staff pages under `/concierge/*`, member pages under `/proposal/*`, so a future `proxy.ts` can protect all internal pages with one matcher. The API paths are fixed by the brief and serve both sides; splitting their access is part of auth (BACKLOG #3).
+- **Gotcha after moving or renaming routes:** a running or stopped `next dev` leaves route types in `.next/dev/types/`, which `tsconfig.json` includes; stale ones break `typecheck`/`build` ("Cannot find module '../../../app/page.js'"). Delete `.next/dev/types` (generated) or restart `next dev`.
+- **Thin route files:** `app/**/page.tsx` only does Next.js work — `params`, `connection()`, `generateMetadata`, `notFound()`, the `cache()`-shared data load — then returns a `<…Screen />` with DTO props. `loading/error/not-found.tsx` are one-line re-exports of their screens (`error.tsx` keeps `"use client"`). Screens never import services or Next routing APIs.
 - **Component layout rule:** every component is a folder named after it, PascalCase, with `index.tsx` (same shape everywhere; a colocated test can sit next to it). Module components live in `<module>/components/<Name>/`. `shadcn add` still writes `button.tsx`-style files into `common/components/` — move each into `<Name>/index.tsx` and fix the imports.
 - `.gitignore`: `node_modules`, `.next`, `data/*.db`, `docs/TASK.md`, `.env*`, `_local/`.
 - `_local/` holds private/local-only material (original task PDF, context files) — present on disk, invisible to git.

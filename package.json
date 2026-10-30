@@ -16,7 +16,8 @@
     "db:migrate": "prisma generate && prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force && prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "images:optimize": "tsx scripts/optimize-images.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",
@@ -43,6 +44,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "prisma": "7.10.1",
+    "sharp": "0.35.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

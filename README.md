@@ -2,7 +2,7 @@
 
 A lightweight tool for Exclusive Resorts concierges: build a curated itinerary for a member's upcoming stay, send it as a proposal, and let the member review, approve and "pay" to lock it in.
 
-> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity ✅ · concierge dashboard (built, browser pass pending) · member view · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
+> **Status: work in progress.** Built in phases — setup & data ✅ · API ✅ · concierge entity ✅ · concierge dashboard ✅ · member view (gallery pending) · final README. Architecture, design decisions and assumptions will be documented here as those phases land.
 
 ## Requirements
 
@@ -18,6 +18,13 @@ npm run dev
 ```
 
 Open the URL printed in the terminal — usually <http://localhost:3000> (Next.js picks the next free port if 3000 is taken).
+
+| Page | URL | Who |
+|---|---|---|
+| Concierge dashboard | `/concierge` (`/` redirects here) | Internal staff |
+| Member itinerary | `/proposal/<id>` — the link in the email, or "Open as member" on the dashboard | Members |
+
+Internal and member pages have separate URL prefixes so that, once there is a login, one rule can protect everything under `/concierge`.
 
 No `.env` file or database server is required. On a fresh clone:
 
@@ -41,6 +48,7 @@ No `.env` file or database server is required. On a fresh clone:
 | `npm run db:seed` | Re-run the seed (idempotent) |
 | `npm run db:reset` | ⚠️ Delete **all** data, re-apply migrations, re-seed (dev only) |
 | `npm run db:studio` | Browse the database in Prisma Studio |
+| `npm run images:optimize` | Convert new PNG/JPEG files in `public/images` to resized WebP and delete the originals |
 
 ## Database
 
@@ -129,6 +137,10 @@ curl -s -X POST localhost:3000/api/proposals -H 'content-type: application/json'
 curl -s -X POST localhost:3000/api/proposals/<id>/send   # watch the server console for the email
 ```
 
+## Assumptions
+
+- Images are AI-generated placeholders (Google Gemini), not photos of the real property.
+
 ## Known limitations and trade-offs
 
 ### Security model
@@ -155,6 +167,7 @@ For production I'd move to Postgres; the Prisma schema and services would barely
 
 - **Only `draft → sent → approved → paid`.** A member can't decline or ask for changes. If the concierge sends a corrected proposal, the earlier one isn't superseded, so the member could still approve and pay the old one.
 - **Prices are USD estimates.** There is no currency field.
+- **Unknown member links show the "can't find this itinerary" page with HTTP 200, not 404.** The page streams (Next.js Partial Prerendering), so the status is sent before the database lookup finishes; Next adds `noindex`, and the not-found content arrives in the streamed payload, so it needs JavaScript to appear. A true 404 would need the id checked in `proxy.ts` before rendering, which is an extra database read on every visit.
 - **Times are destination wall-clock times** (`2027-03-16T19:00` in the reservation's time zone). That's what an itinerary means, but the API can't check whether a time is in the past. Punta Mita has no daylight saving time, so no times are skipped or repeated.
 
 ## Tests
@@ -176,6 +189,7 @@ app/                    Next.js App Router (pages, route handlers)
     common/components/  shared and shadcn/ui components, one folder each (<Name>/index.tsx)
     concierge/components/  concierge dashboard components
     member/components/     member view components
+    <module>/screens/      whole pages as plain components; the route files in app/ only load data
 domain/                 business logic, one folder per entity
   proposals/            service, status machine, rules, validation, email, categories
   reservations/         service

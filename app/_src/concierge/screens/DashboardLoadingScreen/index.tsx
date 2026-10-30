@@ -1,5 +1,4 @@
-// Also the Suspense boundary that lets the dashboard read uncached data (see app/page.tsx).
-export default function DashboardLoading() {
+export function DashboardLoadingScreen() {
   return (
     <div aria-busy="true" className="animate-pulse motion-reduce:animate-none">
       <p role="status" className="sr-only">
