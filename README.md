@@ -87,12 +87,13 @@ All optional — the defaults work out of the box.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `file:./data/app.db` | SQLite file used by both the Prisma CLI and the app |
+| `CURRENT_CONCIERGE_EMAIL` | `sofia.navarro@example.com` (the seeded concierge) | Which concierge new proposals are attributed to, until there is a login |
 
 Put overrides in `.env.local` (git-ignored).
 
 ## API
 
-JSON over Next.js Route Handlers. A proposal's `id` is its unguessable public id (the same one used in the member link); numeric database ids never leave the server.
+JSON over Next.js Route Handlers. Request bodies must be sent with `Content-Type: application/json`. A proposal's `id` is always its unguessable public id (the same one used in the member link), never its database key. Item and reservation ids are plain integers; they grant no access, so they don't need to be unguessable.
 
 | Method & path | Body | Success | Errors |
 |---|---|---|---|
@@ -113,6 +114,7 @@ JSON over Next.js Route Handlers. A proposal's `id` is its unguessable public id
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Malformed JSON or a body that fails validation (`details.issues` lists each field) |
 | 404 | `NOT_FOUND` | Unknown proposal or reservation |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | A request body sent without `Content-Type: application/json` (blocks cross-site form posts) |
 | 409 | `INVALID_TRANSITION` | Status change not allowed from the current status (e.g. approve a draft, pay twice) |
 | 409 | `CONFLICT` | Editing a non-draft, sending an empty proposal, or a concurrent change (e.g. double-clicked "Pay") |
 | 422 | `RULE_VIOLATION` | An item scheduled outside the stay (arrival and departure days count) |
@@ -127,6 +129,34 @@ curl -s -X POST localhost:3000/api/proposals -H 'content-type: application/json'
 curl -s -X POST localhost:3000/api/proposals/<id>/send   # watch the server console for the email
 ```
 
+## Known limitations and trade-offs
+
+### Security model
+
+There is no login; the brief asks for a member link, not accounts.
+
+- **What the link protects:** the member page. Proposal ids are random 21-character ids, so a member can't guess another member's link from their own.
+- **What it doesn't protect:** the API. `GET /api/proposals` lists every proposal id to anyone who calls it, and anyone holding an id can approve and pay. The API also can't tell a member from a concierge, so either can call any endpoint. Links never expire, so a forwarded email keeps working.
+- **Already in place:** request bodies must be `application/json`, which stops a form on another website from posting to the API; unexpected errors are logged on the server and never returned to the client.
+- **With more time:** concierge login (with the concierge endpoints behind it), and member access through signed, expiring tokens that can only approve and pay their own proposal.
+
+### SQLite
+
+SQLite is what the brief asks for and it makes the project one command to run, but it has costs a production system wouldn't accept:
+
+- SQLite can't add a column with a non-constant default (such as the current time), so those migrations rebuild the table and copy every row.
+- One writer at a time. The status updates are race-safe, but writes queue under load.
+- A database file can't be deployed to serverless hosts such as Vercel.
+- `better-sqlite3` is a native module (see Requirements).
+
+For production I'd move to Postgres; the Prisma schema and services would barely change.
+
+### Workflow and data
+
+- **Only `draft → sent → approved → paid`.** A member can't decline or ask for changes. If the concierge sends a corrected proposal, the earlier one isn't superseded, so the member could still approve and pay the old one.
+- **Prices are USD estimates.** There is no currency field.
+- **Times are destination wall-clock times** (`2027-03-16T19:00` in the reservation's time zone). That's what an itinerary means, but the API can't check whether a time is in the past. Punta Mita has no daylight saving time, so no times are skipped or repeated.
+
 ## Tests
 
 ```bash
@@ -135,7 +165,7 @@ npm test
 
 Tests live in [`tests/`](tests):
 
-- **Unit:** status machine, stay-date rule, totals, request validation.
+- **Unit:** status machine, stay-date rule, totals, request validation, and the HTTP layer (each error code's status, content-type check, no leaked internals on 500s).
 - **Service (real SQLite):** the full create → send → approve → pay loop, error cases, and a concurrency test proving two simultaneous approvals can't both succeed. A global setup migrates one template DB per run (`prisma migrate deploy`); each test works on its own copy, so tests never touch `data/app.db`.
 
 ## Project structure

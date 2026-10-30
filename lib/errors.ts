@@ -1,5 +1,6 @@
 export type ErrorCode =
   | "VALIDATION_ERROR"
+  | "UNSUPPORTED_MEDIA_TYPE"
   | "NOT_FOUND"
   | "INVALID_TRANSITION"
   | "CONFLICT"

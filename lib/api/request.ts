@@ -1,11 +1,28 @@
 import type { z } from "zod";
 import { DomainError } from "@/lib/errors";
 
-/** Parses and validates a JSON body; malformed JSON and schema failures both become 400s. */
+// A cross-site HTML form can only send form, multipart or text/plain bodies without a CORS
+// preflight, so requiring application/json shuts that door before cookie-based auth exists.
+function isJson(request: Request): boolean {
+  const mediaType = request.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+  return mediaType === "application/json";
+}
+
+/**
+ * Parses and validates a JSON body: a non-JSON content type is a 415, malformed JSON and schema
+ * failures are 400s.
+ */
 export async function parseBody<Schema extends z.ZodType>(
   request: Request,
   schema: Schema,
 ): Promise<z.output<Schema>> {
+  if (!isJson(request)) {
+    throw new DomainError(
+      "UNSUPPORTED_MEDIA_TYPE",
+      "Send the request body as JSON with the header Content-Type: application/json.",
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

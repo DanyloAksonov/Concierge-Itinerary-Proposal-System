@@ -62,10 +62,21 @@ describe("createProposal", () => {
     });
   });
 
-  it("fails loudly when no concierge exists (unseeded database)", async () => {
+  it("fails loudly when the configured concierge doesn't exist (unseeded database)", async () => {
     await db.concierge.deleteMany();
 
-    await expect(createDraft()).rejects.toThrow("No concierge found");
+    await expect(createDraft()).rejects.toThrow('No concierge with email "sofia.navarro@example.com"');
+  });
+
+  it("attributes to the configured concierge, not whichever row comes first", async () => {
+    await db.concierge.deleteMany();
+    const other = { name: "Marco Ruiz", title: "Concierge", phone: "+52 329 555 0100" };
+    await db.concierge.create({ data: { ...other, email: "marco.ruiz@example.com" } });
+    await db.concierge.create({
+      data: { ...other, name: "Sofia Navarro", email: "sofia.navarro@example.com" },
+    });
+
+    expect((await createDraft()).concierge.name).toBe("Sofia Navarro");
   });
 
   it("rejects items outside the stay with RULE_VIOLATION", async () => {

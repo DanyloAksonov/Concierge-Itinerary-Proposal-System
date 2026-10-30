@@ -52,7 +52,7 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - AI wrote the service layer, Zod schemas, error mapping and the 6 route handlers; I reviewed the API contract decisions:
   - PATCH is **either** a status change **or** a draft edit (both → 400) instead of "and/or" — one request, one meaning.
   - New `RULE_VIOLATION` code for 422 (item outside the stay).
-  - Responses expose the `publicId` as `id`; numeric PKs never leave the server.
+  - Responses expose the `publicId` as a proposal's `id`. (Originally written as "numeric PKs never leave the server" — the audit found that wrong: item and reservation ids are integers. Corrected.)
 - AI read the bundled Next 16 docs first and caught a Cache Components pitfall: a DB-reading `GET` handler without `await connection()` is **prerendered at build time** (verified: `/api/reservations` became static `○` without it).
 - Bug AI introduced and then caught from the build log: the `withErrorHandling` try/catch swallowed Next's internal prerender-bailout signal from `connection()`. Fixed with `unstable_rethrow` (per the Next docs).
 - Verified by AI:
@@ -69,3 +69,10 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - AI added `concierges` + required `proposals.concierge_id`, `getCurrentConcierge()` as the single stand-in for a future session lookup (clients can't send a concierge id — unknown body keys are already a 400), concierge in proposal responses, `conciergeName` in the list, and an email signature.
 - Prisma's generated migration would fail on any DB that already has proposals (required column, no default). AI hand-edited it with a conditional backfill (insert the seed concierge only if proposals exist; same email as the seed so the seed's upsert reuses it).
 - Verified by AI: built a DB at the Phase 2 state with 2 proposals, applied the new migration → both attributed, seed kept 1 concierge; fresh DB seeded twice → 1 concierge; 59 tests; curl (400 on `conciergeId` in body, concierge in detail/list, signed email).
+
+## Intermediate audit (after Phase 3)
+
+- I asked for a devil's-advocate audit. No such skill was installed; AI searched, compared three published skills, read the chosen one in full (instructions only, no scripts) and installed it at user level after I agreed.
+- AI ran the protocol over every decision and tested its suspicions with 6 probes on a throwaway DB instead of asserting them. Two suspicions were disproved (Host-header injection into email links; a draft edit racing a send); two were confirmed (`text/plain` bodies accepted; anonymous enumeration + approve). Report published as a private artifact.
+- Applied (my approval): 415 for non-JSON bodies; concierge resolved by `CURRENT_CONCIERGE_EMAIL` instead of "first row"; unit tests for the HTTP layer; corrected the false "numeric ids never leave the server" claim; README "Known limitations and trade-offs" (security model, SQLite, workflow/data).
+- Verified by AI: 79 tests; mutation checks (removing `unstable_rethrow` and reverting to "first row" each make a test fail); curl (text/plain and form bodies → 415, JSON with charset → 201, bodyless send → 200).
