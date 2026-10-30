@@ -10,11 +10,12 @@ type EmailContext = {
     departureDate: string;
     member: { name: string; email: string };
   };
+  concierge: { name: string; title: string; email: string; phone: string };
 };
 
 /** Builds the (simulated) proposal email; the link is the member's only way into the proposal. */
 export function composeProposalEmail(proposal: EmailContext, baseUrl: string) {
-  const { reservation, items } = proposal;
+  const { reservation, items, concierge } = proposal;
   const link = new URL(`/proposal/${proposal.publicId}`, baseUrl).toString();
   const experiences = items.length === 1 ? "1 experience" : `${items.length} experiences`;
 
@@ -27,6 +28,7 @@ export function composeProposalEmail(proposal: EmailContext, baseUrl: string) {
         `(${formatStayRange(reservation.arrivalDate, reservation.departureDate)}): ` +
         `${experiences}, estimated total ${formatMoney(totalCents(items))}.`,
       `Review and approve it here: ${link}`,
+      `Warm regards,\n${concierge.name}\n${concierge.title}\n${concierge.email} · ${concierge.phone}`,
     ].join("\n\n"),
   };
 }
