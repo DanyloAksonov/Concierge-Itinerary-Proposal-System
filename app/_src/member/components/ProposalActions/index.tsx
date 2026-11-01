@@ -6,8 +6,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/app/_src/common/components/Button";
 import { apiRequest, errorMessage } from "@/app/_src/common/utils/api-client";
+import { focusWhenRendered } from "@/app/_src/common/utils/focus-when-rendered";
 import type { ProposalStatus } from "@/domain/proposals/status";
 import { cn } from "cn";
+import { CONFIRMATION_HEADING_ID } from "../ConfirmationPanel";
 
 type Props = {
   proposalId: string;
@@ -36,6 +38,8 @@ export function ProposalActions({ proposalId, status, variant }: Props) {
     try {
       await apiRequest(`/api/proposals/${proposalId}`, { method: "PATCH", body: { status: next } });
       toast.success(STEP_ACTION[next].success);
+      // The clicked button disappears on refresh; take focus to what comes next instead of <body>.
+      focusWhenRendered(next === "approved" ? `pay-action-${variant}` : CONFIRMATION_HEADING_ID);
     } catch (error) {
       // e.g. already approved in another tab: show why, then show the current state.
       toast.error("That didn’t go through", { description: errorMessage(error) });
@@ -46,7 +50,13 @@ export function ProposalActions({ proposalId, status, variant }: Props) {
   }
 
   const actionButton = (
-    <Button type="button" onClick={advance} disabled={pending} className={GOLD_BUTTON}>
+    <Button
+      type="button"
+      id={next === "paid" ? `pay-action-${variant}` : undefined}
+      onClick={advance}
+      disabled={pending}
+      className={GOLD_BUTTON}
+    >
       {pending ? "One moment…" : STEP_ACTION[next].label}
     </Button>
   );

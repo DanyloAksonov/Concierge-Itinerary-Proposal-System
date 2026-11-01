@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/app/_src/common/components/Button";
 import {
   Dialog,
@@ -9,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/app/_src/common/components/Dialog";
 import { formatClockTime, formatMoney, formatShortDay } from "@/lib/format";
 import { CATEGORIES } from "@/domain/proposals/categories";
@@ -17,6 +19,10 @@ import type { ReservationDto } from "@/domain/reservations/service";
 import type { DraftItem } from "../ItemList";
 
 type Props = Pick<ReservationDto, "member"> & {
+  /** The button that opens the dialog; Radix returns focus to it on close. */
+  trigger: ReactNode;
+  /** Lets the caller send focus elsewhere on close (e.g. when the trigger is disabled after sending). */
+  onCloseAutoFocus?: (event: Event) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: DraftItem[];
@@ -27,6 +33,8 @@ type Props = Pick<ReservationDto, "member"> & {
 
 /** What the member will receive, shown before anything is sent. */
 export function ProposalPreview({
+  trigger,
+  onCloseAutoFocus,
   open,
   onOpenChange,
   member,
@@ -39,7 +47,8 @@ export function ProposalPreview({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Preview: itinerary for {member.name}</DialogTitle>
           <DialogDescription>

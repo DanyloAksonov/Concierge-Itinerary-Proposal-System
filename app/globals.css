@@ -88,4 +88,9 @@
   h3 {
     text-wrap: balance;
   }
+  /* Cormorant's default old-style figures make "Day 1" read as "Day ı"; use lining figures. Set via
+     font-feature-settings so it combines with Tailwind's tabular-nums (font-variant-numeric). */
+  .font-display {
+    font-feature-settings: "lnum" 1;
+  }
 }

@@ -9,7 +9,9 @@ import { CATEGORIES, ItemCategory } from "@/domain/proposals/categories";
 import { type ItemInput, itemInputSchema } from "@/domain/proposals/validation";
 import { cn } from "cn";
 
-type Field = "category" | "title" | "time" | "price" | "description";
+// Fields in on-screen order: errors are listed, and focus moves, in this order.
+const FIELDS = ["category", "title", "time", "price", "description"] as const;
+type Field = (typeof FIELDS)[number];
 type FieldErrors = Partial<Record<Field, string>>;
 
 // Where each schema field's error is shown in this form.
@@ -65,7 +67,13 @@ export function ItemForm({ days, onAdd }: Props) {
     }
 
     setErrors(nextErrors);
-    if (!result.success || Object.keys(nextErrors).length > 0) return;
+    const firstInvalid = FIELDS.find((field) => nextErrors[field]);
+    if (firstInvalid) {
+      // Moving focus makes screen readers read the field and its linked error, not silence.
+      document.getElementById(`${id}-${firstInvalid}`)?.focus();
+      return;
+    }
+    if (!result.success) return;
 
     onAdd(result.data);
     setTitle("");
@@ -81,7 +89,7 @@ export function ItemForm({ days, onAdd }: Props) {
     "aria-invalid": errors[field] ? true : undefined,
     "aria-describedby": errors[field] ? errorId(field) : undefined,
   });
-  const errorList = (Object.keys(errors) as Field[]).filter((field) => errors[field]);
+  const errorList = FIELDS.filter((field) => errors[field]);
   const suggestions = category ? CATEGORIES[category].suggestions : [];
 
   return (
