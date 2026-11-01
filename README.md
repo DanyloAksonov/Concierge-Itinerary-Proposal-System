@@ -106,10 +106,10 @@ JSON over Next.js Route Handlers. Request bodies must be sent with `Content-Type
 | Method & path | Body | Success | Errors |
 |---|---|---|---|
 | `GET /api/reservations` | — | `200 { reservations: [{ reservation, member }] }` | — |
-| `POST /api/proposals` | `{ reservationId, note?, items?: Item[] }` | `201` proposal (status `draft`) + `Location` header | 400, 404, 422 |
-| `GET /api/proposals` | — | `200 { proposals: [{ id, conciergeName, status, itemCount, totalCents, …timestamps }] }` | — |
+| `POST /api/proposals` | `{ reservationId, title, note?, items?: Item[] }` | `201` proposal (status `draft`) + `Location` header | 400, 404, 422 |
+| `GET /api/proposals` | — | `200 { proposals: [{ id, title, status, itemCount, totalCents, categories, firstDay, lastDay, conciergeName, …timestamps }] }` | — |
 | `GET /api/proposals/:id` | — | `200` proposal with items (sorted by time), `totalCents`, reservation, member, concierge | 404 |
-| `PATCH /api/proposals/:id` | **either** `{ status }` **or** `{ note?, items? }` (drafts only; `items` replaces the list) | `200` proposal | 400, 404, 409, 422 |
+| `PATCH /api/proposals/:id` | **either** `{ status }` **or** `{ title?, note?, items? }` (drafts only; `items` replaces the list) | `200` proposal | 400, 404, 409, 422 |
 | `POST /api/proposals/:id/send` | — | `200 { proposal, email }` | 404, 409 |
 
 `Item` = `{ category, title, description?, scheduledAt: "YYYY-MM-DDTHH:mm" (destination-local), priceCents }`. Money is always integer cents; totals are computed, never stored.
@@ -139,6 +139,7 @@ curl -s -X POST localhost:3000/api/proposals/<id>/send   # watch the server cons
 
 ## Assumptions
 
+- `price_cents` on an item is the **total estimated price for the whole party**, not per person (there is no party size yet — see `docs/BACKLOG.md`).
 - Images are AI-generated placeholders (Google Gemini), not photos of the real property.
 
 ## Known limitations and trade-offs

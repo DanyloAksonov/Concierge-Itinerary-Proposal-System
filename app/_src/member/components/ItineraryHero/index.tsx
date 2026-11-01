@@ -1,11 +1,11 @@
 import type { ProposalDto } from "@/domain/proposals/service";
 import { nightsOf } from "@/domain/proposals/rules";
 import { formatStayRange } from "@/lib/format";
-import { destinationCity, destinationCountry } from "@/app/_src/member/utils/destination";
+import { destinationCity, destinationCountry } from "@/app/_src/common/utils/destination";
 
-type Props = Pick<ProposalDto, "reservation" | "member" | "items">;
+type Props = Pick<ProposalDto, "title" | "reservation" | "member" | "items">;
 
-export function ItineraryHero({ reservation, member, items }: Props) {
+export function ItineraryHero({ title, reservation, member, items }: Props) {
   const nights = nightsOf(reservation);
   const facts = [
     formatStayRange(reservation.arrivalDate, reservation.departureDate),
@@ -15,6 +15,7 @@ export function ItineraryHero({ reservation, member, items }: Props) {
 
   return (
     <div className="grid gap-3 py-10 sm:py-14">
+      <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-text">{title}</p>
       <h1 className="font-display text-4xl font-semibold leading-tight sm:text-5xl">
         Your {destinationCity(reservation.destination)} Itinerary
       </h1>

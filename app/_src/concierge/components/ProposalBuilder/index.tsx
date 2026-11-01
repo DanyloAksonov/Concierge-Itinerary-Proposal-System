@@ -1,12 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { apiRequest, errorMessage } from "@/app/_src/common/utils/api-client";
+import { ApiError, apiRequest, errorMessage } from "@/app/_src/common/utils/api-client";
 import { copyText } from "@/app/_src/common/utils/copy-text";
+import { destinationCity } from "@/app/_src/common/utils/destination";
+import { focusWhenRendered } from "@/app/_src/common/utils/focus-when-rendered";
 import { memberLink } from "@/app/_src/concierge/utils/member-link";
 import { Button } from "@/app/_src/common/components/Button";
+import { Input } from "@/app/_src/common/components/Input";
 import { Label } from "@/app/_src/common/components/Label";
 import { Textarea } from "@/app/_src/common/components/Textarea";
 import { stayDays } from "@/domain/proposals/rules";
@@ -17,12 +21,33 @@ import { ItemForm } from "../ItemForm";
 import { type DraftItem, ItemList } from "../ItemList";
 import { ProposalPreview } from "../ProposalPreview";
 
-/** Builds a new proposal locally, then saves it as a draft or previews and sends it. */
-export function ProposalBuilder({ reservation, member }: ReservationDto) {
+// Different ids per mode, so focus can wait for the *other* builder to appear after a switch.
+export const NEW_HEADING_ID = "builder-heading";
+export const EDIT_HEADING_ID = "builder-heading-edit";
+
+type Props = ReservationDto & {
+  /** A draft to edit (from `/concierge?edit=<id>`); without it the builder starts a new proposal. */
+  editing?: ProposalDto | null;
+};
+
+const toDraftItem = (item: ProposalDto["items"][number]): DraftItem => ({
+  key: String(item.id),
+  category: item.category,
+  title: item.title,
+  description: item.description,
+  scheduledAt: item.scheduledAt,
+  priceCents: item.priceCents,
+});
+
+/** Builds a new proposal or edits a draft, then saves it or previews and sends it. */
+export function ProposalBuilder({ reservation, member, editing }: Props) {
   const router = useRouter();
   const noteId = useId();
-  const [items, setItems] = useState<DraftItem[]>([]);
-  const [note, setNote] = useState("");
+  const titleId = useId();
+  const defaultTitle = `${destinationCity(reservation.destination)} itinerary`;
+  const [title, setTitle] = useState(editing?.title ?? defaultTitle);
+  const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map(toDraftItem) ?? []);
+  const [note, setNote] = useState(editing?.note ?? "");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState<"saving" | "sending" | null>(null);
   // After a save or send the buttons disable themselves, so focus needs somewhere deliberate to go.
@@ -36,37 +61,53 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
   }
 
   function reset() {
+    setTitle(defaultTitle);
     setItems([]);
     setNote("");
     setPreviewOpen(false);
   }
 
-  const createDraft = () =>
-    apiRequest<ProposalDto>("/api/proposals", {
-      method: "POST",
-      body: {
-        reservationId: reservation.id,
-        note,
-        items: items.map(({ category, title, description, scheduledAt, priceCents }) => ({
-          category,
-          title,
-          description,
-          scheduledAt,
-          priceCents,
-        })),
-      },
-    });
+  /** Back to an empty builder: the page re-renders without `?edit`, then focus lands on it. */
+  function leaveEditMode() {
+    router.replace("/concierge", { scroll: false });
+    focusWhenRendered(NEW_HEADING_ID);
+  }
+
+  const content = () => ({
+    title,
+    note,
+    items: items.map(({ category, title, description, scheduledAt, priceCents }) => ({
+      category,
+      title,
+      description,
+      scheduledAt,
+      priceCents,
+    })),
+  });
+
+  const save = () =>
+    editing
+      ? apiRequest<ProposalDto>(`/api/proposals/${editing.id}`, { method: "PATCH", body: content() })
+      : apiRequest<ProposalDto>("/api/proposals", {
+          method: "POST",
+          body: { reservationId: reservation.id, ...content() },
+        });
 
   async function saveDraft() {
     setBusy("saving");
     try {
-      await createDraft();
-      toast.success("Draft saved", { description: "You can send it from the proposals list." });
+      await save();
+      toast.success(editing ? "Draft updated" : "Draft saved", {
+        description: "You can send it from the proposals list.",
+      });
+      if (editing) return leaveEditMode();
       reset();
       headingRef.current?.focus();
       router.refresh();
     } catch (error) {
       toast.error("Couldn't save the draft", { description: errorMessage(error) });
+      // e.g. sent from another tab meanwhile: it can't be edited any more.
+      if (editing && error instanceof ApiError && error.code === "CONFLICT") leaveEditMode();
     } finally {
       setBusy(null);
     }
@@ -76,47 +117,73 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
     setBusy("sending");
     let draft: ProposalDto | null = null;
     try {
-      draft = await createDraft();
+      draft = await save();
       await apiRequest(`/api/proposals/${draft.id}/send`, { method: "POST" });
       const link = memberLink(draft.id);
       toast.success(`Sent to ${member.name}`, {
         description: `The itinerary link was emailed to ${member.email}.`,
         action: { label: "Copy link", onClick: () => void copyText(link) },
       });
-      focusHeadingOnClose.current = true;
-      reset();
     } catch (error) {
-      if (draft) {
-        // Created but not sent: keep the work, point the concierge to the list.
-        toast.error("Saved as a draft, but sending failed", {
-          description: `${errorMessage(error)} You can send it from the proposals list.`,
-        });
-        focusHeadingOnClose.current = true;
-        reset();
-      } else {
-        toast.error("Couldn't send the proposal", { description: errorMessage(error) });
-      }
+      toast.error(draft ? "Saved as a draft, but sending failed" : "Couldn't send the proposal", {
+        description: draft
+          ? `${errorMessage(error)} You can send it from the proposals list.`
+          : errorMessage(error),
+      });
+      if (!draft) return; // nothing saved: keep the builder as it is so nothing is lost
     } finally {
       setBusy(null);
-      router.refresh();
     }
+    // Saved (and sent, or at least saved as a draft): start over.
+    if (editing) return leaveEditMode();
+    focusHeadingOnClose.current = true;
+    reset();
+    router.refresh();
   }
 
-  const canSubmit = items.length > 0 && busy === null;
+  const canSubmit = items.length > 0 && title.trim() !== "" && busy === null;
+  const headingId = editing ? EDIT_HEADING_ID : NEW_HEADING_ID;
 
   return (
-    <section aria-labelledby="builder-heading" className="grid grid-cols-[minmax(0,1fr)] gap-4">
+    <section aria-labelledby={headingId} className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2
-          id="builder-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-base font-semibold focus:outline-none"
-        >
-          New proposal
-        </h2>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h2
+            id={headingId}
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-base font-semibold focus:outline-none"
+          >
+            {editing ? "Editing draft" : "New proposal"}
+          </h2>
+          {editing && (
+            <Link
+              href="/concierge"
+              scroll={false}
+              onClick={() => focusWhenRendered(NEW_HEADING_ID)}
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              Cancel editing
+            </Link>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           Items can be scheduled from arrival to departure day, in local time.
+        </p>
+      </div>
+
+      <div className="grid gap-1 sm:max-w-md">
+        <Label htmlFor={titleId}>Proposal title</Label>
+        <Input
+          id={titleId}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="e.g. Anniversary week"
+          maxLength={120}
+          aria-describedby={`${titleId}-hint`}
+        />
+        <p id={`${titleId}-hint`} className="text-xs text-muted-foreground">
+          Shown in the proposals list, to {member.name} and in the email subject.
         </p>
       </div>
 
@@ -144,11 +211,13 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {items.length === 0 && (
-          <p className="mr-auto text-sm text-muted-foreground">Add at least one item to save or send.</p>
+        {(items.length === 0 || title.trim() === "") && (
+          <p className="mr-auto text-sm text-muted-foreground">
+            {title.trim() === "" ? "Give the proposal a title to save or send." : "Add at least one item to save or send."}
+          </p>
         )}
         <Button type="button" variant="outline" onClick={saveDraft} disabled={!canSubmit}>
-          {busy === "saving" ? "Saving…" : "Save draft"}
+          {busy === "saving" ? "Saving…" : editing ? "Save changes" : "Save draft"}
         </Button>
         <ProposalPreview
           trigger={
@@ -166,6 +235,7 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
             headingRef.current?.focus();
           }}
           member={member}
+          title={title}
           items={items}
           note={note}
           sending={busy === "sending"}

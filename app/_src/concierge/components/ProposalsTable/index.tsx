@@ -7,7 +7,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/app/_src/common/components/Table";
-import { formatMoney, formatTimestamp } from "@/lib/format";
+import { CATEGORIES } from "@/domain/proposals/categories";
+import { formatDaySpan, formatMoney, formatTimestamp } from "@/lib/format";
 import type { ProposalSummaryDto } from "@/domain/proposals/service";
 import { ProposalRowActions } from "../ProposalRowActions";
 
@@ -16,6 +17,8 @@ type Props = {
   memberName: string;
   /** Audit timestamps are shown in the destination's time zone, where the concierge works. */
   timeZone: string;
+  /** The draft currently open in the builder, highlighted in the list. */
+  editingId: string | null;
 };
 
 const MILESTONES = [
@@ -25,12 +28,13 @@ const MILESTONES = [
   { key: "paidAt", label: "Paid" },
 ] as const;
 
-export function ProposalsTable({ proposals, memberName, timeZone }: Props) {
+export function ProposalsTable({ proposals, memberName, timeZone, editingId }: Props) {
   return (
     <div className="rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Proposal</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Items</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -46,15 +50,31 @@ export function ProposalsTable({ proposals, memberName, timeZone }: Props) {
         <TableBody>
           {proposals.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="py-6 text-center text-muted-foreground">
+              <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
                 No proposals yet. Build one above and send it to {memberName}.
               </TableCell>
             </TableRow>
           ) : (
             proposals.map((proposal) => (
-              <TableRow key={proposal.id}>
+              <TableRow
+                key={proposal.id}
+                className={proposal.id === editingId ? "bg-accent hover:bg-accent" : undefined}
+              >
+                <TableCell className="max-w-72 whitespace-normal">
+                  <span className="font-medium break-words">{proposal.title}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {proposal.firstDay && proposal.lastDay
+                      ? `${formatDaySpan(proposal.firstDay, proposal.lastDay)} · `
+                      : ""}
+                    {proposal.categories.map((category) => CATEGORIES[category].label).join(" · ") ||
+                      "No items yet"}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <StatusBadge status={proposal.status} />
+                  {proposal.id === editingId && (
+                    <span className="ml-2 text-xs font-medium">Editing</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{proposal.itemCount}</TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
@@ -83,6 +103,7 @@ export function ProposalsTable({ proposals, memberName, timeZone }: Props) {
                     proposalId={proposal.id}
                     status={proposal.status}
                     memberName={memberName}
+                    isEditing={proposal.id === editingId}
                   />
                 </TableCell>
               </TableRow>

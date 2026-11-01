@@ -32,15 +32,22 @@ describe("itemInputSchema", () => {
 });
 
 describe("createProposalSchema", () => {
+  it("requires a non-blank title", () => {
+    expect(createProposalSchema.safeParse({ reservationId: 1 }).success).toBe(false);
+    expect(createProposalSchema.safeParse({ reservationId: 1, title: "   " }).success).toBe(false);
+  });
+
   it("rejects a client-supplied concierge — the server decides who is acting", () => {
     expect(
-      createProposalSchema.safeParse({ reservationId: 1, conciergeId: 2, items: [] }).success,
+      createProposalSchema.safeParse({ reservationId: 1, title: "T", conciergeId: 2, items: [] })
+        .success,
     ).toBe(false);
   });
 
   it("defaults items to [] and turns an empty note into null", () => {
-    expect(createProposalSchema.parse({ reservationId: 1, note: "  " })).toEqual({
+    expect(createProposalSchema.parse({ reservationId: 1, title: "Arrival plan", note: "  " })).toEqual({
       reservationId: 1,
+      title: "Arrival plan",
       note: null,
       items: [],
     });
@@ -51,10 +58,12 @@ describe("updateProposalSchema", () => {
   it("accepts a status change or a content edit", () => {
     expect(updateProposalSchema.safeParse({ status: "approved" }).success).toBe(true);
     expect(updateProposalSchema.safeParse({ note: "Welcome!", items: [item] }).success).toBe(true);
+    expect(updateProposalSchema.safeParse({ title: "Arrival plan" }).success).toBe(true);
   });
 
   it("rejects mixing status with content, and empty bodies", () => {
     expect(updateProposalSchema.safeParse({ status: "sent", note: "x" }).success).toBe(false);
+    expect(updateProposalSchema.safeParse({ status: "sent", title: "x" }).success).toBe(false);
     expect(updateProposalSchema.safeParse({}).success).toBe(false);
   });
 });

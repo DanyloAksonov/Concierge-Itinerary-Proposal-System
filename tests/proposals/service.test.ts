@@ -38,7 +38,7 @@ afterEach(async () => {
 });
 
 const createDraft = (items: ItemInput[] = [dinner, surf]) =>
-  service.createProposal({ reservationId, note: null, items });
+  service.createProposal({ reservationId, title: "Anniversary week", note: null, items });
 
 describe("createProposal", () => {
   it("creates a draft with items sorted by time and a computed total", async () => {
@@ -90,7 +90,7 @@ describe("createProposal", () => {
 
   it("returns NOT_FOUND for an unknown reservation", async () => {
     await expect(
-      service.createProposal({ reservationId: 999, note: null, items: [] }),
+      service.createProposal({ reservationId: 999, title: "Any", note: null, items: [] }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
@@ -107,6 +107,7 @@ describe("sendProposal", () => {
     expect(email.bodyPreview).toContain(`${BASE_URL}/proposal/${draft.id}`);
     expect(email.bodyPreview).toContain("$1,450.00");
     expect(email.bodyPreview).toContain("Sofia Navarro\nSenior Concierge, Punta Mita");
+    expect(email.subject).toBe("Anniversary week: your itinerary for Villa Punta Mita is ready");
     expect(await db.sentEmail.count()).toBe(1);
   });
 
@@ -207,6 +208,15 @@ describe("updateDraft", () => {
     expect(updated.totalCents).toBe(25_000);
   });
 
+  it("renames a draft without touching its items", async () => {
+    const draft = await createDraft();
+
+    const updated = await service.updateDraft(draft.id, { title: "Arrival plan" });
+
+    expect(updated.title).toBe("Arrival plan");
+    expect(updated.items).toHaveLength(2);
+  });
+
   it("keeps items when only the note changes", async () => {
     const draft = await createDraft();
 
@@ -227,6 +237,14 @@ describe("updateDraft", () => {
 });
 
 describe("listProposals", () => {
+  it("reports no categories or days for an empty draft", async () => {
+    await createDraft([]);
+
+    const [summary] = (await service.listProposals()).proposals;
+
+    expect(summary).toMatchObject({ categories: [], firstDay: null, lastDay: null });
+  });
+
   it("summarises each proposal with item count and total", async () => {
     const draft = await createDraft();
 
@@ -235,6 +253,11 @@ describe("listProposals", () => {
     expect(proposals).toEqual([
       expect.objectContaining({
         id: draft.id,
+        title: "Anniversary week",
+        // surf (Mar 16, 08:00) happens before dinner (Mar 16, 19:00)
+        categories: ["ACTIVITIES", "DINING"],
+        firstDay: "2027-03-16",
+        lastDay: "2027-03-16",
         conciergeName: "Sofia Navarro",
         status: "draft",
         itemCount: 2,

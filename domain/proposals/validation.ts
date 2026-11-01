@@ -38,8 +38,11 @@ const noteSchema = z
 
 const itemsSchema = z.array(itemInputSchema).max(MAX_ITEMS);
 
+export const proposalTitleSchema = z.string().trim().min(1, "Enter a proposal title.").max(120);
+
 export const createProposalSchema = z.strictObject({
   reservationId: z.number().int().positive(),
+  title: proposalTitleSchema,
   note: noteSchema.optional(),
   items: itemsSchema.default([]),
 });
@@ -48,19 +51,27 @@ export const createProposalSchema = z.strictObject({
 export const updateProposalSchema = z
   .strictObject({
     status: z.enum(ProposalStatus).optional(),
+    title: proposalTitleSchema.optional(),
     note: noteSchema.optional(),
     items: itemsSchema.optional(),
   })
   .superRefine((body, ctx) => {
-    const editsContent = body.note !== undefined || body.items !== undefined;
+    const editsContent =
+      body.title !== undefined || body.note !== undefined || body.items !== undefined;
     if (body.status && editsContent) {
-      ctx.addIssue({ code: "custom", message: "Send either `status` or `note`/`items`, not both" });
+      ctx.addIssue({
+        code: "custom",
+        message: "Send either `status` or `title`/`note`/`items`, not both",
+      });
     }
     if (!body.status && !editsContent) {
-      ctx.addIssue({ code: "custom", message: "Nothing to update: provide `status`, `note` or `items`" });
+      ctx.addIssue({
+        code: "custom",
+        message: "Nothing to update: provide `status`, `title`, `note` or `items`",
+      });
     }
   });
 
 export type ItemInput = z.infer<typeof itemInputSchema>;
 export type CreateProposalInput = z.infer<typeof createProposalSchema>;
-export type DraftChanges = { note?: string | null; items?: ItemInput[] };
+export type DraftChanges = { title?: string; note?: string | null; items?: ItemInput[] };

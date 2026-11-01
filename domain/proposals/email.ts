@@ -3,6 +3,7 @@ import { totalCents } from "./rules";
 
 type EmailContext = {
   publicId: string;
+  title: string;
   items: readonly { priceCents: number }[];
   reservation: {
     villa: string;
@@ -21,7 +22,7 @@ export function composeProposalEmail(proposal: EmailContext, baseUrl: string) {
 
   return {
     toEmail: reservation.member.email,
-    subject: `Your itinerary for ${reservation.villa} is ready`,
+    subject: `${proposal.title}: your itinerary for ${reservation.villa} is ready`,
     bodyPreview: [
       `Dear ${reservation.member.name},`,
       `Your concierge has prepared a personal itinerary for your stay at ${reservation.villa} ` +

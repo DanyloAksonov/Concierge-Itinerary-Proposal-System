@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { ProposalScreen } from "@/app/_src/member/screens/ProposalScreen";
-import { destinationCity } from "@/app/_src/member/utils/destination";
+import { destinationCity } from "@/app/_src/common/utils/destination";
 import { DomainError } from "@/domain/errors";
 import { proposalService } from "@/domain/proposals/service";
 
