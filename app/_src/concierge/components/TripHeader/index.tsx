@@ -8,7 +8,7 @@ type Props = ReservationDto & { concierge: ConciergeDto };
 /** App bar plus the trip being planned, pinned to the top while the concierge works. */
 export function TripHeader({ reservation, member, concierge }: Props) {
   const facts = [
-    { label: "Villa", value: `${reservation.villa}, ${reservation.destination}` },
+    { label: "Destination", value: `${reservation.villa}, ${reservation.destination}` },
     { label: "Arrival", value: formatTripDate(reservation.arrivalDate) },
     { label: "Departure", value: formatTripDate(reservation.departureDate) },
     { label: "Nights", value: String(nightsOf(reservation)) },
