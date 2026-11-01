@@ -62,6 +62,16 @@ const longDay = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
+const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/** ("2027-03-15", "2027-03-18") → "Mar 15 – 18"; one day → "Mar 15". */
+export function formatDaySpan(firstDay: string, lastDay: string): string {
+  const first = new Date(`${firstDay}T00:00:00Z`);
+  return firstDay === lastDay
+    ? monthDay.format(first)
+    : monthDay.formatRange(first, new Date(`${lastDay}T00:00:00Z`));
+}
+
 /** "2027-03-15" → "Monday, March 15" */
 export function formatLongDay(date: string): string {
   return longDay.format(new Date(`${date}T00:00:00Z`));
