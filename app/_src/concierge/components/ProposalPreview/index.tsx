@@ -25,6 +25,7 @@ type Props = Pick<ReservationDto, "member"> & {
   onCloseAutoFocus?: (event: Event) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title: string;
   items: DraftItem[];
   note: string;
   sending: boolean;
@@ -38,6 +39,7 @@ export function ProposalPreview({
   open,
   onOpenChange,
   member,
+  title,
   items,
   note,
   sending,
@@ -50,9 +52,10 @@ export function ProposalPreview({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Itinerary for {member.name}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Check the details before sending. The member link is emailed to {member.email}.
+            Itinerary for {member.name}. Check the details before sending; the link is emailed to{" "}
+            {member.email}.
           </DialogDescription>
         </DialogHeader>
 

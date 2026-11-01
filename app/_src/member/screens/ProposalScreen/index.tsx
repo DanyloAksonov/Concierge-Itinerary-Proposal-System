@@ -25,6 +25,7 @@ export function ProposalScreen({ proposal }: { proposal: ProposalDto }) {
           {/* Once paid, the confirmation is the page's main visual instead of the gallery. */}
           {proposal.status !== "paid" && <Gallery />}
           <ItineraryHero
+            title={proposal.title}
             reservation={proposal.reservation}
             member={proposal.member}
             items={proposal.items}
