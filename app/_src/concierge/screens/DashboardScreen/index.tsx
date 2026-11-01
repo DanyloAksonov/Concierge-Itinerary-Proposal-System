@@ -17,9 +17,10 @@ export function DashboardScreen({ trip, proposals, concierge }: Props) {
   return (
     <>
       <TripHeader {...trip} concierge={concierge} />
-      <main className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-6 sm:px-6">
+      {/* minmax(0,1fr): without it the wide tables stretch the single grid column past a phone screen. */}
+      <main className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-10 px-4 py-6 sm:px-6">
         <ProposalBuilder {...trip} />
-        <section aria-labelledby="proposals-heading" className="grid gap-3">
+        <section aria-labelledby="proposals-heading" className="grid grid-cols-[minmax(0,1fr)] gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="proposals-heading" className="text-base font-semibold">
               Proposals
