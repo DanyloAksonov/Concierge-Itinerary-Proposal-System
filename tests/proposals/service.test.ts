@@ -258,6 +258,10 @@ describe("listProposals", () => {
         categories: ["ACTIVITIES", "DINING"],
         firstDay: "2027-03-16",
         lastDay: "2027-03-16",
+        items: [
+          expect.objectContaining({ title: "Surf lesson", category: "ACTIVITIES", scheduledAt: "2027-03-16T08:00" }),
+          expect.objectContaining({ title: "Private chef dinner", category: "DINING", priceCents: 120_000 }),
+        ],
         conciergeName: "Sofia Navarro",
         status: "draft",
         itemCount: 2,

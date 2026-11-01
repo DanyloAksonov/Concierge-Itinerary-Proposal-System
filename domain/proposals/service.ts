@@ -18,7 +18,7 @@ const proposalInclude = {
 type ProposalRecord = Prisma.ProposalGetPayload<{ include: typeof proposalInclude }>;
 const proposalSummaryInclude = {
   items: {
-    select: { priceCents: true, category: true, scheduledAt: true },
+    select: { id: true, title: true, category: true, scheduledAt: true, priceCents: true },
     orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
   },
   concierge: { select: { name: true } },
@@ -67,6 +67,14 @@ function toProposalSummaryDto(proposal: ProposalSummaryRecord) {
     /** First and last day with an item (YYYY-MM-DD), null for an empty draft. */
     firstDay: items[0]?.scheduledAt.slice(0, 10) ?? null,
     lastDay: items.at(-1)?.scheduledAt.slice(0, 10) ?? null,
+    /** The items in time order, enough for an at-a-glance list (no descriptions). */
+    items: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      scheduledAt: item.scheduledAt,
+      priceCents: item.priceCents,
+    })),
     createdAt: proposal.createdAt.toISOString(),
     sentAt: proposal.sentAt?.toISOString() ?? null,
     approvedAt: proposal.approvedAt?.toISOString() ?? null,
