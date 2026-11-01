@@ -107,3 +107,17 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - AI noticed the files were JPEGs (I'd said PNGs) and that one name had a leading space (`" hero-villa.jpeg"`); the conversion script trims names. `scripts/optimize-images.ts` (sharp, pinned to the version Next already ships) took them from 21 MB to 1.1 MB as WebP.
 - AI used `preload` instead of the `priority` I asked for: the Next 16 docs deprecate `priority` in favour of `preload` (same purpose, LCP image).
 - Verified on a production build: hero preloaded and eager, thumbnails lazy, `sizes` match the layout; a phone downloads ~150 KB for the whole gallery (hero 1080w ≈ 71 KB, thumbnails 384w ≈ 20 KB each) vs 3–4 MB per original.
+
+## Phase 6 — Browser walkthrough + accessibility audit
+
+- I connected Claude in Chrome (no paid axe DevTools). AI drove the full loop in a real browser on a production build with a throwaway DB — create → preview → send → open as member → approve → pay → confirmation — and injected axe-core 4.10 (open source, from cdnjs) into the page in every state: empty form, form errors, preview dialog, after send (toast), member sent/approved/paid, phone width.
+- axe: **0 violations everywhere.** Every real problem was one axe can't detect, found by checking focus and looking at screenshots:
+  1. Item form errors: focus stayed on the button, errors not announced, listed out of field order → focus first invalid field, errors in field order, consistent wording.
+  2. Preview dialog: Esc/close dropped focus on `<body>` (opened by state, not `DialogTrigger`) → real trigger; after send focus the section heading.
+  3. Member Approve: clicked button replaced → focus moves to Pay.
+  4. Member Pay: confirmation rendered **off-screen at the top** while the member was down at the summary card → focus (and scroll) to the confirmation heading. The most important UX bug of the walkthrough.
+  5. Cormorant's old-style numerals read "Day ı", "$ı,050" → lining figures.
+  6. Dashboard on phones scrolled sideways: grid items' `min-width: auto` let the tables widen the column → `grid-cols-[minmax(0,1fr)]`.
+- Phone width couldn't be set by resizing the window (Chrome kept a desktop viewport), so AI rendered both pages in 390px iframes, which apply the same media queries.
+- Test-harness mistakes AI made and caught: typing before focusing a field (text went into the category select), and stale element references after React re-renders — neither was an app bug.
+- Re-verified after the fixes: keyboard-only member flow (Approve → Enter on the focused Pay → focus on the visible confirmation), dialog focus return, no horizontal scroll at 390px, 94 tests, lint, typecheck, build.
