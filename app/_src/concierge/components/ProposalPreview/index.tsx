@@ -50,7 +50,7 @@ export function ProposalPreview({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Preview: itinerary for {member.name}</DialogTitle>
+          <DialogTitle>Itinerary for {member.name}</DialogTitle>
           <DialogDescription>
             Check the details before sending. The member link is emailed to {member.email}.
           </DialogDescription>
