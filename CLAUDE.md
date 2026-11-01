@@ -47,7 +47,7 @@ Context for Claude Code. Read this file and `docs/TASK.md` (the original assignm
 members           id PK, name, email (unique)
 concierges        id PK, name, title, email (unique), phone
 reservations      id PK, member_id FK→members, destination, villa, time_zone (IANA), arrival_date (YYYY-MM-DD), departure_date
-proposals         id PK, public_id (unique), reservation_id FK→reservations, concierge_id FK→concierges,
+proposals         id PK, public_id (unique), reservation_id FK→reservations, concierge_id FK→concierges, title,
                   status ('draft'|'sent'|'approved'|'paid'), note (nullable, stretch),
                   created_at, sent_at, approved_at, paid_at
 proposal_items    id PK, proposal_id FK→proposals (ON DELETE CASCADE), category, title,
@@ -66,10 +66,10 @@ All responses JSON. Errors: `{ "error": { "code": "VALIDATION_ERROR" | "NOT_FOUN
 | Method & path | Body | Success | Errors |
 |---|---|---|---|
 | `GET /api/reservations` | — | 200 `{ reservations: [{ reservation, member }] }` | — |
-| `POST /api/proposals` | `{ reservationId, note?, items?: Item[] }` | 201 proposal (status `draft`) with items + total, `Location` header | 400, 422, 404 reservation |
-| `GET /api/proposals` | — | 200 `{ proposals: [{ id, reservationId, conciergeName, status, itemCount, totalCents, timestamps }] }` | — |
+| `POST /api/proposals` | `{ reservationId, title, note?, items?: Item[] }` | 201 proposal (status `draft`) with items + total, `Location` header | 400, 422, 404 reservation |
+| `GET /api/proposals` | — | 200 `{ proposals: [{ id, title, reservationId, conciergeName, status, itemCount, totalCents, categories, firstDay, lastDay, timestamps }] }` — `categories`/`firstDay`/`lastDay` are derived from items (a proposal mixes categories, so there is no proposal-level category) | — |
 | `GET /api/proposals/[id]` | — | 200 proposal + items (sorted by scheduled_at) + totalCents + reservation + member + concierge | 404 |
-| `PATCH /api/proposals/[id]` | **either** `{ status }` **or** (draft only) `{ note?, items? }` — both → 400 | 200 updated proposal | 400, 422, 404, 409 |
+| `PATCH /api/proposals/[id]` | **either** `{ status }` **or** (draft only) `{ title?, note?, items? }` — both → 400 | 200 updated proposal | 400, 422, 404, 409 |
 | `POST /api/proposals/[id]/send` | — | 200 `{ proposal, email }` | 404, 409 (not draft / no items) |
 
 Agreed rules (kickoff review):
@@ -171,6 +171,7 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 5. **Member view** (~60 min).
 6. **README + full-loop check** (~30 min). Starts with the accessibility audit + browser walkthrough of both screens (BACKLOG #9): axe-core in every UI state, keyboard-only pass, phone width.
 7. **Stretch (if time), in this order:** concierge note → day-by-day timeline (if not already) → edit draft → optimistic UI → animation on confirmation.
+   - Done: concierge note, day-by-day timeline, **edit a draft** (`/concierge?edit=<id>` loads the draft into the builder; Save changes → `PATCH`; Preview & send saves then sends; a 409 leaves edit mode). Partial: confirmation animation (fade/zoom). Not done: optimistic UI, multiple members/reservations.
 
 ## Definition of done
 
