@@ -12,7 +12,6 @@ import { type ItemInput, itemInputSchema } from "@/domain/proposals/validation";
 import { formatShortDay, parseDollarsToCents } from "@/lib/format";
 import { cn } from "cn";
 
-
 /**
  * What the form edits (strings, as typed) and how it becomes an ItemInput. Title, description and
  * price limits come from the domain schema, so the form and the API can't disagree. Each field is
@@ -98,7 +97,8 @@ export function ItemForm({ days, onAdd }: Props) {
 
   return (
     <form onSubmit={addItem} noValidate className="grid gap-3">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-[10rem_minmax(0,1fr)_9rem_7rem_8rem_auto] md:items-end">
+      {/* One row only from lg: its fixed columns need ~700px, so at md the title field collapsed to 0. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_minmax(0,1fr)_9rem_7rem_8rem_auto] lg:items-end">
         <div className="grid gap-1">
           <Label htmlFor={`${id}-category`}>Category</Label>
           <select
@@ -115,7 +115,7 @@ export function ItemForm({ days, onAdd }: Props) {
           </select>
         </div>
 
-        <div className="col-span-2 grid gap-1 md:col-span-1">
+        <div className="col-span-2 grid gap-1 lg:col-span-1">
           <Label htmlFor={`${id}-title`}>Title</Label>
           <Input
             {...register("title")}
@@ -154,7 +154,7 @@ export function ItemForm({ days, onAdd }: Props) {
           <Input {...register("price")} {...fieldProps("price")} inputMode="decimal" placeholder="0.00" />
         </div>
 
-        <Button type="submit" className="col-span-2 md:col-span-1">
+        <Button type="submit" className="col-span-2 lg:col-span-1">
           Add item
         </Button>
       </div>

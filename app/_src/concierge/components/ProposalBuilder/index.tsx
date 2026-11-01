@@ -6,7 +6,6 @@ import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApiError, apiRequest, errorMessage } from "@/app/_src/common/utils/api-client";
 import { copyText } from "@/app/_src/common/utils/copy-text";
-import { destinationCity } from "@/app/_src/common/utils/destination";
 import { focusWhenRendered } from "@/app/_src/common/utils/focus-when-rendered";
 import { memberLink } from "@/app/_src/concierge/utils/member-link";
 import { Button } from "@/app/_src/common/components/Button";
@@ -44,8 +43,9 @@ export function ProposalBuilder({ reservation, member, editing }: Props) {
   const router = useRouter();
   const noteId = useId();
   const titleId = useId();
-  const defaultTitle = `${destinationCity(reservation.destination)} itinerary`;
-  const [title, setTitle] = useState(editing?.title ?? defaultTitle);
+  // No default title: the concierge names each proposal ("Anniversary week"). A generic default read
+  // twice on the member page and in the email subject ("Punta Mita itinerary: your itinerary…").
+  const [title, setTitle] = useState(editing?.title ?? "");
   const [items, setItems] = useState<DraftItem[]>(() => editing?.items.map(toDraftItem) ?? []);
   const [note, setNote] = useState(editing?.note ?? "");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -61,7 +61,7 @@ export function ProposalBuilder({ reservation, member, editing }: Props) {
   }
 
   function reset() {
-    setTitle(defaultTitle);
+    setTitle("");
     setItems([]);
     setNote("");
     setPreviewOpen(false);
@@ -141,7 +141,13 @@ export function ProposalBuilder({ reservation, member, editing }: Props) {
     router.refresh();
   }
 
-  const canSubmit = items.length > 0 && title.trim() !== "" && busy === null;
+  const missing = [
+    title.trim() === "" && "give the proposal a title",
+    items.length === 0 && "add at least one item",
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const canSubmit = !missing && busy === null;
   const headingId = editing ? EDIT_HEADING_ID : NEW_HEADING_ID;
 
   return (
@@ -211,9 +217,9 @@ export function ProposalBuilder({ reservation, member, editing }: Props) {
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {(items.length === 0 || title.trim() === "") && (
+        {missing && (
           <p className="mr-auto text-sm text-muted-foreground">
-            {title.trim() === "" ? "Give the proposal a title to save or send." : "Add at least one item to save or send."}
+            To save or send, {missing}.
           </p>
         )}
         <Button type="button" variant="outline" onClick={saveDraft} disabled={!canSubmit}>

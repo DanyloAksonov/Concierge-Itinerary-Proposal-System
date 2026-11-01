@@ -143,3 +143,19 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - `destinationCity` moved from `member/utils` to `common/utils` now that both modules use it.
 - AI walked through all entities and ranked gaps (price semantics, party size, item duration/location, member preferences, payments, status history with actor, currency, per-item confirmation, email delivery). I agreed: price semantics documented as a README assumption, the rest added to the backlog (#14–#21).
 - Verified: 97 tests; API 400 without a title; in the browser — create with a title, rename in edit mode, table column, member page label, email subject, axe 0 on both screens.
+
+## Expandable proposal rows (my request)
+
+- I asked for accordion rows in the proposals table showing each item's category and title. AI added the items (no descriptions) to the list response — the query already loaded them — and an `ExpandableProposalRow` client component that only owns open/closed state; cells and details stay Server-rendered and are passed in as props, so timestamps are still formatted on the server (no hydration mismatches).
+- Accessibility: the title is a disclosure `<button>` with `aria-expanded`/`aria-controls`; clicking elsewhere on the row toggles too, except on the row's own links and buttons.
+- I asked why the item title uses a `datalist` instead of a dropdown: titles are free text and suggestions are only a starting point ("Dinner at Carolina"), so a select would be too restrictive; the trade-off is that a native datalist can't be styled (a shadcn Combobox is the alternative). Kept the datalist.
+- Verified in the browser: row click expands, Copy link on an expanded row doesn't collapse it, Enter/Space toggle via keyboard with focus kept, `aria-expanded` and the details row stay in sync, no console warnings on reload, axe 0 with a row expanded. (AI first misread its own check — the dialog trigger also has `aria-expanded` — and corrected it.)
+- My review with a screenshot: the Proposal cell wrapped into six lines and expanding a row caused horizontal scroll. AI measured before changing anything (iframes at 768/880/1024/1280px): at 880px the cell was squeezed to 87×137px and the table already overflowed by 44px collapsed — the expanded prices just made it visible. Fix: summary line = day span only (categories live in the expanded row), a min width for the Proposal column, Items hidden below `lg` and Prepared by below `xl`, three-column details. After: 0 overflow from 880px up, cell 2 lines (53px).
+- Found on the way: at 768px the item form's Day select overlapped the Title field (single-row grid from `md` needs ~700px) — single row now from `lg`. And "8:00 AM" wrapped in the details date column — widened and set to no-wrap.
+- My call: moved the Sent/Approved/Paid times out of the table into the expanded row (a progress line above the items); the status badge already shows how far a proposal got. 10 → 7 columns; measured 0px horizontal overflow at 640/768/880/1024px, collapsed and expanded; axe 0 with a row expanded.
+
+## Clean-clone check
+
+- AI cloned the latest branch into an empty folder and followed only the README: `npm install` (8s, client generated), lint/typecheck/97 tests/build, `npm run dev` applied all 4 migrations to a new DB and seeded it; then the full loop in the browser (create → preview → send → member page → approve → pay → dashboard shows paid) with the email checked in the server console. All passed.
+- It surfaced one copy issue: the default title "Punta Mita itinerary" repeated nearby text (email subject "Punta Mita itinerary: your itinerary for…", member page label above "Your Punta Mita Itinerary"). My call on AI's suggestion: no default title — the field starts empty and save/send explain what's missing ("To save or send, give the proposal a title and add at least one item.").
+- Still to do: re-run the check against GitHub `main` once the open PRs are merged.

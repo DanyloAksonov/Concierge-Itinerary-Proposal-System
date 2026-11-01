@@ -107,7 +107,7 @@ JSON over Next.js Route Handlers. Request bodies must be sent with `Content-Type
 |---|---|---|---|
 | `GET /api/reservations` | — | `200 { reservations: [{ reservation, member }] }` | — |
 | `POST /api/proposals` | `{ reservationId, title, note?, items?: Item[] }` | `201` proposal (status `draft`) + `Location` header | 400, 404, 422 |
-| `GET /api/proposals` | — | `200 { proposals: [{ id, title, status, itemCount, totalCents, categories, firstDay, lastDay, conciergeName, …timestamps }] }` | — |
+| `GET /api/proposals` | — | `200 { proposals: [{ id, title, status, itemCount, totalCents, categories, firstDay, lastDay, items, conciergeName, …timestamps }] }` (`items` without descriptions) | — |
 | `GET /api/proposals/:id` | — | `200` proposal with items (sorted by time), `totalCents`, reservation, member, concierge | 404 |
 | `PATCH /api/proposals/:id` | **either** `{ status }` **or** `{ title?, note?, items? }` (drafts only; `items` replaces the list) | `200` proposal | 400, 404, 409, 422 |
 | `POST /api/proposals/:id/send` | — | `200 { proposal, email }` | 404, 409 |
