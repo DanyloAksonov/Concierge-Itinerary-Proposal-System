@@ -17,7 +17,10 @@ const proposalInclude = {
 
 type ProposalRecord = Prisma.ProposalGetPayload<{ include: typeof proposalInclude }>;
 const proposalSummaryInclude = {
-  items: { select: { priceCents: true } },
+  items: {
+    select: { priceCents: true, category: true, scheduledAt: true },
+    orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
+  },
   concierge: { select: { name: true } },
 } satisfies Prisma.ProposalInclude;
 
@@ -28,6 +31,7 @@ type ProposalSummaryRecord = Prisma.ProposalGetPayload<{ include: typeof proposa
 function toProposalDto(proposal: ProposalRecord) {
   return {
     id: proposal.publicId,
+    title: proposal.title,
     status: proposal.status,
     note: proposal.note,
     createdAt: proposal.createdAt.toISOString(),
@@ -49,13 +53,20 @@ function toProposalDto(proposal: ProposalRecord) {
 }
 
 function toProposalSummaryDto(proposal: ProposalSummaryRecord) {
+  const { items } = proposal; // sorted by time
   return {
     id: proposal.publicId,
+    title: proposal.title,
     reservationId: proposal.reservationId,
     conciergeName: proposal.concierge.name,
     status: proposal.status,
-    itemCount: proposal.items.length,
-    totalCents: totalCents(proposal.items),
+    itemCount: items.length,
+    totalCents: totalCents(items),
+    /** Distinct item categories, in the order they first happen. Derived — a proposal mixes them. */
+    categories: [...new Set(items.map((item) => item.category))],
+    /** First and last day with an item (YYYY-MM-DD), null for an empty draft. */
+    firstDay: items[0]?.scheduledAt.slice(0, 10) ?? null,
+    lastDay: items.at(-1)?.scheduledAt.slice(0, 10) ?? null,
     createdAt: proposal.createdAt.toISOString(),
     sentAt: proposal.sentAt?.toISOString() ?? null,
     approvedAt: proposal.approvedAt?.toISOString() ?? null,
@@ -132,6 +143,7 @@ export function createProposalService(db: PrismaClient) {
       data: {
         reservationId: reservation.id,
         conciergeId: concierge.id,
+        title: input.title,
         note: input.note,
         items: { create: input.items },
       },
@@ -155,6 +167,7 @@ export function createProposalService(db: PrismaClient) {
       return tx.proposal.update({
         where: { id: current.id },
         data: {
+          title: changes.title,
           note: changes.note,
           items: changes.items && { deleteMany: {}, create: changes.items },
         },
