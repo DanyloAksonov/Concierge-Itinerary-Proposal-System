@@ -121,3 +121,10 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 - Phone width couldn't be set by resizing the window (Chrome kept a desktop viewport), so AI rendered both pages in 390px iframes, which apply the same media queries.
 - Test-harness mistakes AI made and caught: typing before focusing a field (text went into the category select), and stale element references after React re-renders — neither was an app bug.
 - Re-verified after the fixes: keyboard-only member flow (Approve → Enter on the focused Pay → focus on the visible confirmation), dialog focus return, no horizontal scroll at 390px, 94 tests, lint, typecheck, build.
+
+## ItemForm → react-hook-form (my suggestion)
+
+- I flagged the 7 `useState`s in `ItemForm`. AI agreed and moved it to react-hook-form + `@hookform/resolvers/zod`, pinned to versions at least two weeks old (react-hook-form 7.90.0, resolvers 5.9.2 — the latest resolvers had been published that same day).
+- The form schema reuses the domain schema's `title`, `description` and `priceCents` rules, so the form and the API can't disagree; each field is validated on its own so all errors still show at once (a single transform would hide later errors until earlier ones were fixed). New: a separate message for prices above the $1,000,000 cap (it used to say the format was wrong).
+- Found by re-testing in the browser, fixed by diagnosis rather than guesswork: after adding an item, focus didn't reliably return to Title. First with `reset()` + `setFocus` (reset rebuilds field refs), then with `resetField` + `setFocus` — console logging showed `setFocus` lands a tick later, so fast typing still went into Price. Final: `resetField` for the per-item fields and a synchronous DOM focus. Verified by adding an item and typing the next title with no pause at all.
+- Re-verified: empty submit → focus on Category, all four errors in field order; axe 0 violations; category and day kept between items.
