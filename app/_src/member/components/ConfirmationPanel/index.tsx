@@ -4,6 +4,9 @@ import type { ProposalDto } from "@/domain/proposals/service";
 import { formatMoney, formatTimestamp, formatTripDate } from "@/lib/format";
 import calmSea from "@/public/images/confirmation.webp";
 
+/** ProposalActions moves focus here after payment, so the member lands on the confirmation. */
+export const CONFIRMATION_HEADING_ID = "confirmation-heading";
+
 type Props = Pick<ProposalDto, "member" | "concierge" | "reservation" | "totalCents" | "paidAt">;
 
 /**
@@ -16,7 +19,7 @@ export function ConfirmationPanel({ member, concierge, reservation, totalCents, 
 
   return (
     <section
-      aria-labelledby="confirmation-heading"
+      aria-labelledby={CONFIRMATION_HEADING_ID}
       className="relative grid min-h-[26rem] place-items-center overflow-hidden rounded-sm bg-panel px-4 py-12 sm:px-8"
     >
       <Image
@@ -32,7 +35,11 @@ export function ConfirmationPanel({ member, concierge, reservation, totalCents, 
         <span aria-hidden className="grid size-14 place-items-center rounded-full bg-gold text-ink">
           <Check className="size-7" />
         </span>
-        <h2 id="confirmation-heading" className="font-display text-3xl font-semibold sm:text-4xl">
+        <h2
+          id={CONFIRMATION_HEADING_ID}
+          tabIndex={-1}
+          className="font-display text-3xl font-semibold focus:outline-none sm:text-4xl"
+        >
           Your itinerary is locked in
         </h2>
         <p className="text-lg text-muted-foreground">

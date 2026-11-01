@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiRequest, errorMessage } from "@/app/_src/common/utils/api-client";
 import { copyText } from "@/app/_src/common/utils/copy-text";
@@ -25,7 +25,9 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
   const [note, setNote] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState<"saving" | "sending" | null>(null);
-
+  // After a save or send the buttons disable themselves, so focus needs somewhere deliberate to go.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeadingOnClose = useRef(false);
 
   function addItem(item: ItemInput) {
     const next = [...items, { ...item, key: crypto.randomUUID() }];
@@ -61,6 +63,7 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
       await createDraft();
       toast.success("Draft saved", { description: "You can send it from the proposals list." });
       reset();
+      headingRef.current?.focus();
       router.refresh();
     } catch (error) {
       toast.error("Couldn't save the draft", { description: errorMessage(error) });
@@ -80,6 +83,7 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
         description: `The itinerary link was emailed to ${member.email}.`,
         action: { label: "Copy link", onClick: () => void copyText(link) },
       });
+      focusHeadingOnClose.current = true;
       reset();
     } catch (error) {
       if (draft) {
@@ -87,6 +91,7 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
         toast.error("Saved as a draft, but sending failed", {
           description: `${errorMessage(error)} You can send it from the proposals list.`,
         });
+        focusHeadingOnClose.current = true;
         reset();
       } else {
         toast.error("Couldn't send the proposal", { description: errorMessage(error) });
@@ -100,9 +105,14 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
   const canSubmit = items.length > 0 && busy === null;
 
   return (
-    <section aria-labelledby="builder-heading" className="grid gap-4">
+    <section aria-labelledby="builder-heading" className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="builder-heading" className="text-base font-semibold">
+        <h2
+          id="builder-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-base font-semibold focus:outline-none"
+        >
           New proposal
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -140,20 +150,28 @@ export function ProposalBuilder({ reservation, member }: ReservationDto) {
         <Button type="button" variant="outline" onClick={saveDraft} disabled={!canSubmit}>
           {busy === "saving" ? "Saving…" : "Save draft"}
         </Button>
-        <Button type="button" onClick={() => setPreviewOpen(true)} disabled={!canSubmit}>
-          Preview & send
-        </Button>
+        <ProposalPreview
+          trigger={
+            <Button type="button" disabled={!canSubmit}>
+              Preview & send
+            </Button>
+          }
+          open={previewOpen}
+          onOpenChange={(open) => busy !== "sending" && setPreviewOpen(open)}
+          onCloseAutoFocus={(event) => {
+            // Radix returns focus to the trigger by default; after sending it's disabled.
+            if (!focusHeadingOnClose.current) return;
+            event.preventDefault();
+            focusHeadingOnClose.current = false;
+            headingRef.current?.focus();
+          }}
+          member={member}
+          items={items}
+          note={note}
+          sending={busy === "sending"}
+          onSend={send}
+        />
       </div>
-
-      <ProposalPreview
-        open={previewOpen}
-        onOpenChange={(open) => busy !== "sending" && setPreviewOpen(open)}
-        member={member}
-        items={items}
-        note={note}
-        sending={busy === "sending"}
-        onSend={send}
-      />
     </section>
   );
 }

@@ -15,7 +15,7 @@ const MAX_ITEMS = 50;
 
 export const itemInputSchema = z.strictObject({
   category: z.enum(ItemCategory),
-  title: z.string().trim().min(1, "Title is required").max(120),
+  title: z.string().trim().min(1, "Enter a title.").max(120),
   description: z.string().trim().max(1000).default(""),
   scheduledAt: z
     .string()
