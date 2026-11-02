@@ -158,4 +158,9 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 
 - AI cloned the latest branch into an empty folder and followed only the README: `npm install` (8s, client generated), lint/typecheck/97 tests/build, `npm run dev` applied all 4 migrations to a new DB and seeded it; then the full loop in the browser (create → preview → send → member page → approve → pay → dashboard shows paid) with the email checked in the server console. All passed.
 - It surfaced one copy issue: the default title "Punta Mita itinerary" repeated nearby text (email subject "Punta Mita itinerary: your itinerary for…", member page label above "Your Punta Mita Itinerary"). My call on AI's suggestion: no default title — the field starts empty and save/send explain what's missing ("To save or send, give the proposal a title and add at least one item.").
-- Still to do: re-run the check against GitHub `main` once the open PRs are merged.
+- Final check against GitHub `main` after merging: an anonymous clone (no credentials) worked — the repo is publicly readable — then install, lint/typecheck/97 tests/build, `npm run dev` on a fresh DB, and the full loop in the browser all passed.
+
+## Final README
+
+- AI wrote the final README from the brief's required sections (run locally, assumptions, improvements, most interesting/challenging) plus architecture, data model, decisions, stretch-goal status and this AI summary, using `docs/BACKLOG.md` and this file as sources. I review and edit it in my own voice.
+- While doing so AI caught that the previous README's `curl` example created a proposal without a `title`, which the API now rejects; it ran the new example verbatim against a server, and checked every internal link and anchor.
