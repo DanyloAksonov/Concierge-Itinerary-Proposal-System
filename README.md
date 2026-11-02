@@ -163,7 +163,8 @@ curl -s -X POST localhost:3000/api/proposals/<id>/send   # the email is printed 
 8. **The server decides who is acting.** Proposals are attributed to the current concierge on the server (`getCurrentConcierge()`, the single place a login session would plug in); clients can't send a concierge id.
 9. **Two very different UIs from one app.** The concierge dashboard is a plain admin panel (one sans font, neutral colours, dense tables); the member page carries the luxury design (serif display font, gold accents, gallery). A first, more decorative dashboard was replaced after review.
 10. **Prisma + SQLite instead of raw SQL.** A readable schema, typed queries and first-class migrations, at the cost of a code-generation step and no SQLite CHECK constraints (validation is done by Zod and the Prisma client instead).
-11. **Accessibility as part of done.** Labelled fields with linked errors, keyboard-operable dialogs and rows, deliberate focus moves after every action, `role="status"` announcements, AA contrast — checked with axe in every state and by hand (see [Testing](#testing)).
+11. **Optimistic where it's safe, not where money is involved.** Approving updates the page immediately (React's `useOptimistic`) and rolls back with an explanation if the server refuses; paying waits for the server, because a confirmation that might be taken back is worse than a short wait.
+12. **Accessibility as part of done.** Labelled fields with linked errors, keyboard-operable dialogs and rows, deliberate focus moves after every action, `role="status"` announcements, AA contrast — checked with axe in every state and by hand (see [Testing](#testing)).
 
 ## Assumptions
 
@@ -213,7 +214,7 @@ SQLite keeps the project to one command, but for production I'd move to Postgres
 | Edit a draft before sending | ✅ Done — edit mode in the builder, conflict-safe |
 | Day-by-day timeline on the member view | ✅ Done — grouped by day with day numbers |
 | Animate the approval / payment confirmation | ⚠️ Partial — the confirmation fades and zooms in (respects reduced motion) |
-| Optimistic UI updates | ❌ Not done — status changes wait for the server, then refresh |
+| Optimistic UI updates | ✅ Done for **Approve** — the stepper moves on at once and rolls back if the server refuses. **Pay is deliberately not optimistic:** "locked in" must never show for a payment that might still fail |
 | Multiple members / reservations in the UI | ❌ Not done — the data model and API support it; the dashboard shows one trip |
 
 ## What I'd improve with more time
@@ -230,7 +231,7 @@ The full list, with what exists today and why each item was deferred, is in [`do
   - payments and status history as records, with who did what;
   - currency per proposal.
 - **Production:** Postgres; a real email provider with delivery status; photos in object storage managed from the dashboard; absolute links from a configured app URL; pagination.
-- **UX:** multiple reservations in the dashboard; optimistic updates; a gallery carousel; translations (dates and money already go through `Intl`).
+- **UX:** multiple reservations in the dashboard; optimistic sending from the proposals table; a gallery carousel; translations (dates and money already go through `Intl`).
 - **Quality:** automated accessibility checks in CI (`@axe-core/playwright`) and end-to-end tests of the full loop; component tests next to components.
 
 ## Most interesting and challenging

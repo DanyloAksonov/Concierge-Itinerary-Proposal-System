@@ -132,7 +132,7 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 ## Stretch: edit a draft
 
 - AI built draft editing on the existing `PATCH` endpoint (no API change): an "Edit" action on draft rows links to `/concierge?edit=<id>`; the page loads the draft on the server (only if it's a draft for this trip; anything else is ignored) and the builder opens in edit mode, keyed by draft id. Save changes → `PATCH`; Preview & send saves, then sends; a 409 (sent elsewhere meanwhile) shows the reason and leaves edit mode. The row being edited is highlighted and hides its own Send, which would send the saved version instead of the edits.
-- Focus: the builder heading has a different id per mode, so `focusWhenRendered` can wait for the *new* builder after switching (entering edit, after save/send, on cancel).
+- Focus: the builder heading has a different id per mode, so `focusWhenRendered` can wait for the _new_ builder after switching (entering edit, after save/send, on cancel).
 - Verified in the browser: open → items, note and "Save changes" loaded, focus on "Editing draft"; remove an item + change the note → "Draft updated", table shows 1 item / $1,200, change confirmed via the API; Preview & send from edit mode; conflict (draft sent via API while open) → "Only draft proposals can be edited…", nothing overwritten; Cancel editing; `?edit=` with a sent / unknown / repeated id → plain builder.
 - axe caught one thing AI introduced: the "Editing" label in the highlighted row was 4.31:1 (muted text on the accent background). Fixed to regular text colour; axe clean after a hard reload (the first re-check ran against a cached page — confirmed by curling the server's HTML).
 
@@ -164,3 +164,10 @@ Working log of how AI (Claude Code) was used. Summarised into the README at the 
 
 - AI wrote the final README from the brief's required sections (run locally, assumptions, improvements, most interesting/challenging) plus architecture, data model, decisions, stretch-goal status and this AI summary, using `docs/BACKLOG.md` and this file as sources. I review and edit it in my own voice.
 - While doing so AI caught that the previous README's `curl` example created a proposal without a `title`, which the API now rejects; it ran the new example verbatim against a server, and checked every internal link and anchor.
+
+## Stretch: optimistic Approve
+
+- Implemented with React 19 `useOptimistic` inside a transition that ends with `router.refresh()`, so server truth replaces the optimistic value and a refusal rolls back automatically. The member status line moved into the same client component so it doesn't lag behind the stepper.
+- Verified in the browser by slowing the API down in the page (wrapping `fetch`): with the request still in flight the page already showed "Approved", Pay locked with "Saving your approval…" and focus on Pay; a click on the locked Pay was ignored (server confirmed: approved, not paid); a simulated refusal rolled the stepper back with an error toast; a real conflict (approved elsewhere first) ended on the true state.
+- Caught on the way: AI first locked Pay with `disabled`, which made it unfocusable — focus fell to `<body>` (a regression of the a11y fix). Switched to `aria-disabled` + a guarded click. AI also wrote a broken `fetch` wrapper for the rollback test (it called itself) and redid the test after a reload rather than trust it.
+- Also fixed: the member saw a developer error ("Cannot move a proposal from "approved" to "approved"") on conflicts; now "Your itinerary was updated in another window. We're showing its latest status."

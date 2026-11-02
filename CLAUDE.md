@@ -171,7 +171,7 @@ docs/TASK.md (git-ignored), docs/AI_NOTES.md
 5. **Member view** (~60 min).
 6. **README + full-loop check** (~30 min). Starts with the accessibility audit + browser walkthrough of both screens (BACKLOG #9): axe-core in every UI state, keyboard-only pass, phone width.
 7. **Stretch (if time), in this order:** concierge note → day-by-day timeline (if not already) → edit draft → optimistic UI → animation on confirmation.
-   - Done: concierge note, day-by-day timeline, **edit a draft** (`/concierge?edit=<id>` loads the draft into the builder; Save changes → `PATCH`; Preview & send saves then sends; a 409 leaves edit mode). Partial: confirmation animation (fade/zoom). Not done: optimistic UI, multiple members/reservations.
+   - Done: concierge note, day-by-day timeline, **edit a draft** (`/concierge?edit=<id>` loads the draft into the builder; Save changes → `PATCH`; Preview & send saves then sends; a 409 leaves edit mode). Partial: confirmation animation (fade/zoom). Optimistic UI: done for member Approve (`useOptimistic` + transition, rollback on refusal; Pay button locked with `aria-disabled` — not `disabled`, which would block focus — until the approval is saved); Pay deliberately pessimistic. Not done: multiple members/reservations.
 
 ## Definition of done
 
