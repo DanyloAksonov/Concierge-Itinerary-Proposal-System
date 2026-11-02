@@ -99,18 +99,22 @@ flowchart LR
 
 [`prisma/schema.prisma`](prisma/schema.prisma) is the source of truth; tables and columns are snake_case in SQLite.
 
-| Table | Key columns | Notes |
+Every table has an auto-increment integer primary key `id`.
+
+| Table | Columns | Notes |
 |---|---|---|
-| `members` | name, email (unique) | |
-| `concierges` | name, title, email (unique), phone | Separate from members: different role and relations |
-| `reservations` | member_id, destination, villa, time_zone, arrival_date, departure_date | Dates are destination-local `YYYY-MM-DD` |
-| `proposals` | public_id (unique), reservation_id, concierge_id, title, status, note, created/sent/approved/paid_at | `public_id` is the unguessable id in the member link |
-| `proposal_items` | proposal_id, category, title, description, scheduled_at, price_cents | `scheduled_at` is local wall time; deleted with their proposal |
-| `sent_emails` | proposal_id, to_email, subject, body_preview, sent_at | Append-only log of simulated emails |
+| `members` | id, name, email (unique), created_at, updated_at | |
+| `concierges` | id, name, title, email (unique), phone, created_at, updated_at | Separate from members: different role and relations |
+| `reservations` | id, member_id → members, destination, villa, time_zone, arrival_date, departure_date, created_at, updated_at | Dates are destination-local `YYYY-MM-DD` |
+| `proposals` | id, public_id (unique), reservation_id → reservations, concierge_id → concierges, title, status, note (nullable), created_at, updated_at, sent_at, approved_at, paid_at | `public_id` is the unguessable id in the member link and the API; API responses never include the numeric `id` |
+| `proposal_items` | id, proposal_id → proposals, category, title, description, scheduled_at, price_cents, created_at | `scheduled_at` is local wall time; deleted with their proposal (cascade) |
+| `sent_emails` | id, proposal_id → proposals, to_email, subject, body_preview, sent_at | Append-only log of simulated emails |
+
+Indexes: `proposals(reservation_id, status)`, `proposals(concierge_id)`, `proposal_items(proposal_id, scheduled_at)`, `reservations(member_id)`, `sent_emails(proposal_id)`.
 
 - **Status** is an enum, `draft | sent | approved | paid`; **category** is an enum of the six categories from the brief (labels and suggestions are product config in code, not a table).
 - **Money** is integer cents; totals are always computed from items, never stored.
-- **Audit timestamps:** every table has `created_at`; tables whose rows change also have `updated_at`.
+- **Audit timestamps:** every table records when a row was created (`created_at`; for `sent_emails` that is `sent_at`). Only tables whose rows change also have `updated_at`: proposal items are replaced, never edited, and emails are append-only.
 - **Migrations** are committed in [`prisma/migrations/`](prisma/migrations). Two were hand-edited to backfill data so existing databases upgrade without a reset.
 
 ## API
