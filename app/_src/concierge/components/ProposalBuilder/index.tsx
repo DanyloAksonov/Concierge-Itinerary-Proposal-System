@@ -11,6 +11,7 @@ import { memberLink } from "@/app/_src/concierge/utils/member-link";
 import { Button } from "@/app/_src/common/components/Button";
 import { Input } from "@/app/_src/common/components/Input";
 import { Label } from "@/app/_src/common/components/Label";
+import { RequiredMark } from "@/app/_src/common/components/RequiredMark";
 import { Textarea } from "@/app/_src/common/components/Textarea";
 import { stayDays } from "@/domain/proposals/rules";
 import type { ProposalDto } from "@/domain/proposals/service";
@@ -174,16 +175,23 @@ export function ProposalBuilder({ reservation, member, editing }: Props) {
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          Items can be scheduled from arrival to departure day, in local time.
+          Items can be scheduled from arrival to departure day, in local time.{" "}
+          {/* Hidden from screen readers: the fields announce "required" themselves. */}
+          <span aria-hidden className="whitespace-nowrap">
+            <span className="text-destructive">*</span> Required
+          </span>
         </p>
       </div>
 
       <div className="grid gap-1 sm:max-w-md">
-        <Label htmlFor={titleId}>Proposal title</Label>
+        <Label htmlFor={titleId}>
+          Proposal title <RequiredMark />
+        </Label>
         <Input
           id={titleId}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
+          aria-required
           placeholder="e.g. Anniversary week"
           maxLength={120}
           aria-describedby={`${titleId}-hint`}
