@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Button } from "@/app/_src/common/components/Button";
 import { Input } from "@/app/_src/common/components/Input";
 import { Label } from "@/app/_src/common/components/Label";
+import { RequiredMark } from "@/app/_src/common/components/RequiredMark";
 import { CATEGORIES, ItemCategory } from "@/domain/proposals/categories";
 import { type ItemInput, itemInputSchema } from "@/domain/proposals/validation";
 import { formatShortDay, parseDollarsToCents } from "@/lib/format";
@@ -100,10 +101,13 @@ export function ItemForm({ days, onAdd }: Props) {
       {/* One row only from lg: its fixed columns need ~700px, so at md the title field collapsed to 0. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_minmax(0,1fr)_9rem_7rem_8rem_auto] lg:items-end">
         <div className="grid gap-1">
-          <Label htmlFor={`${id}-category`}>Category</Label>
+          <Label htmlFor={`${id}-category`}>
+            Category <RequiredMark />
+          </Label>
           <select
             {...register("category")}
             {...fieldProps("category")}
+            aria-required
             className={cn(SELECT_CLASS, !category && "text-muted-foreground")}
           >
             <option value="">Select…</option>
@@ -116,10 +120,13 @@ export function ItemForm({ days, onAdd }: Props) {
         </div>
 
         <div className="col-span-2 grid gap-1 lg:col-span-1">
-          <Label htmlFor={`${id}-title`}>Title</Label>
+          <Label htmlFor={`${id}-title`}>
+            Title <RequiredMark />
+          </Label>
           <Input
             {...register("title")}
             {...fieldProps("title")}
+            aria-required
             list={`${id}-suggestions`}
             placeholder={suggestions[0] ?? "Choose a category for suggestions"}
             maxLength={120}
@@ -133,8 +140,10 @@ export function ItemForm({ days, onAdd }: Props) {
         </div>
 
         <div className="grid gap-1">
-          <Label htmlFor={`${id}-day`}>Day</Label>
-          <select {...register("day")} id={`${id}-day`} className={SELECT_CLASS}>
+          <Label htmlFor={`${id}-day`}>
+            Day <RequiredMark />
+          </Label>
+          <select {...register("day")} id={`${id}-day`} aria-required className={SELECT_CLASS}>
             {days.map((stayDay, index) => (
               <option key={stayDay} value={stayDay}>
                 {formatShortDay(stayDay)}
@@ -145,13 +154,17 @@ export function ItemForm({ days, onAdd }: Props) {
         </div>
 
         <div className="grid gap-1">
-          <Label htmlFor={`${id}-time`}>Time (local)</Label>
-          <Input {...register("time")} {...fieldProps("time")} type="time" />
+          <Label htmlFor={`${id}-time`}>
+            Time (local) <RequiredMark />
+          </Label>
+          <Input {...register("time")} {...fieldProps("time")} aria-required type="time" />
         </div>
 
         <div className="grid gap-1">
-          <Label htmlFor={`${id}-price`}>Price (USD)</Label>
-          <Input {...register("price")} {...fieldProps("price")} inputMode="decimal" placeholder="0.00" />
+          <Label htmlFor={`${id}-price`}>
+            Price (USD) <RequiredMark />
+          </Label>
+          <Input {...register("price")} {...fieldProps("price")} aria-required inputMode="decimal" placeholder="0.00" />
         </div>
 
         <Button type="submit" className="col-span-2 lg:col-span-1">

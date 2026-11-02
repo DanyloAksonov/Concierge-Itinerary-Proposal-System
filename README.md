@@ -99,18 +99,22 @@ flowchart LR
 
 [`prisma/schema.prisma`](prisma/schema.prisma) is the source of truth; tables and columns are snake_case in SQLite.
 
-| Table | Key columns | Notes |
+Every table has an auto-increment integer primary key `id`.
+
+| Table | Columns | Notes |
 |---|---|---|
-| `members` | name, email (unique) | |
-| `concierges` | name, title, email (unique), phone | Separate from members: different role and relations |
-| `reservations` | member_id, destination, villa, time_zone, arrival_date, departure_date | Dates are destination-local `YYYY-MM-DD` |
-| `proposals` | public_id (unique), reservation_id, concierge_id, title, status, note, created/sent/approved/paid_at | `public_id` is the unguessable id in the member link |
-| `proposal_items` | proposal_id, category, title, description, scheduled_at, price_cents | `scheduled_at` is local wall time; deleted with their proposal |
-| `sent_emails` | proposal_id, to_email, subject, body_preview, sent_at | Append-only log of simulated emails |
+| `members` | id, name, email (unique), created_at, updated_at | |
+| `concierges` | id, name, title, email (unique), phone, created_at, updated_at | Separate from members: different role and relations |
+| `reservations` | id, member_id → members, destination, villa, time_zone, arrival_date, departure_date, created_at, updated_at | Dates are destination-local `YYYY-MM-DD` |
+| `proposals` | id, public_id (unique), reservation_id → reservations, concierge_id → concierges, title, status, note (nullable), created_at, updated_at, sent_at, approved_at, paid_at | `public_id` is the unguessable id in the member link and the API; API responses never include the numeric `id` |
+| `proposal_items` | id, proposal_id → proposals, category, title, description, scheduled_at, price_cents, created_at | `scheduled_at` is local wall time; deleted with their proposal (cascade) |
+| `sent_emails` | id, proposal_id → proposals, to_email, subject, body_preview, sent_at | Append-only log of simulated emails |
+
+Indexes: `proposals(reservation_id, status)`, `proposals(concierge_id)`, `proposal_items(proposal_id, scheduled_at)`, `reservations(member_id)`, `sent_emails(proposal_id)`.
 
 - **Status** is an enum, `draft | sent | approved | paid`; **category** is an enum of the six categories from the brief (labels and suggestions are product config in code, not a table).
 - **Money** is integer cents; totals are always computed from items, never stored.
-- **Audit timestamps:** every table has `created_at`; tables whose rows change also have `updated_at`.
+- **Audit timestamps:** every table records when a row was created (`created_at`; for `sent_emails` that is `sent_at`). Only tables whose rows change also have `updated_at`: proposal items are replaced, never edited, and emails are append-only.
 - **Migrations** are committed in [`prisma/migrations/`](prisma/migrations). Two were hand-edited to backfill data so existing databases upgrade without a reset.
 
 ## API
@@ -163,7 +167,8 @@ curl -s -X POST localhost:3000/api/proposals/<id>/send   # the email is printed 
 8. **The server decides who is acting.** Proposals are attributed to the current concierge on the server (`getCurrentConcierge()`, the single place a login session would plug in); clients can't send a concierge id.
 9. **Two very different UIs from one app.** The concierge dashboard is a plain admin panel (one sans font, neutral colours, dense tables); the member page carries the luxury design (serif display font, gold accents, gallery). A first, more decorative dashboard was replaced after review.
 10. **Prisma + SQLite instead of raw SQL.** A readable schema, typed queries and first-class migrations, at the cost of a code-generation step and no SQLite CHECK constraints (validation is done by Zod and the Prisma client instead).
-11. **Accessibility as part of done.** Labelled fields with linked errors, keyboard-operable dialogs and rows, deliberate focus moves after every action, `role="status"` announcements, AA contrast — checked with axe in every state and by hand (see [Testing](#testing)).
+11. **Optimistic where it's safe, not where money is involved.** Approving updates the page immediately (React's `useOptimistic`) and rolls back with an explanation if the server refuses; paying waits for the server, because a confirmation that might be taken back is worse than a short wait.
+12. **Accessibility as part of done.** Labelled fields with linked errors, keyboard-operable dialogs and rows, deliberate focus moves after every action, `role="status"` announcements, AA contrast — checked with axe in every state and by hand (see [Testing](#testing)).
 
 ## Assumptions
 
@@ -213,7 +218,7 @@ SQLite keeps the project to one command, but for production I'd move to Postgres
 | Edit a draft before sending | ✅ Done — edit mode in the builder, conflict-safe |
 | Day-by-day timeline on the member view | ✅ Done — grouped by day with day numbers |
 | Animate the approval / payment confirmation | ⚠️ Partial — the confirmation fades and zooms in (respects reduced motion) |
-| Optimistic UI updates | ❌ Not done — status changes wait for the server, then refresh |
+| Optimistic UI updates | ✅ Done for **Approve** — the stepper moves on at once and rolls back if the server refuses. **Pay is deliberately not optimistic:** "locked in" must never show for a payment that might still fail |
 | Multiple members / reservations in the UI | ❌ Not done — the data model and API support it; the dashboard shows one trip |
 
 ## What I'd improve with more time
@@ -230,7 +235,7 @@ The full list, with what exists today and why each item was deferred, is in [`do
   - payments and status history as records, with who did what;
   - currency per proposal.
 - **Production:** Postgres; a real email provider with delivery status; photos in object storage managed from the dashboard; absolute links from a configured app URL; pagination.
-- **UX:** multiple reservations in the dashboard; optimistic updates; a gallery carousel; translations (dates and money already go through `Intl`).
+- **UX:** multiple reservations in the dashboard; optimistic sending from the proposals table; a gallery carousel; translations (dates and money already go through `Intl`).
 - **Quality:** automated accessibility checks in CI (`@axe-core/playwright`) and end-to-end tests of the full loop; component tests next to components.
 
 ## Most interesting and challenging
