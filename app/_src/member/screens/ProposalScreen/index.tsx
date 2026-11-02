@@ -8,11 +8,12 @@ import { MemberHeader } from "@/app/_src/member/components/MemberHeader";
 import { MobileActionBar } from "@/app/_src/member/components/MobileActionBar";
 import { PreviewBanner } from "@/app/_src/member/components/PreviewBanner";
 import { SummaryCard } from "@/app/_src/member/components/SummaryCard";
+import { isActionable } from "@/app/_src/member/utils/member-status";
 import type { ProposalDto } from "@/domain/proposals/service";
 
 /** The member's itinerary page for any status: preview (draft), actions (sent/approved), confirmation (paid). */
 export function ProposalScreen({ proposal }: { proposal: ProposalDto }) {
-  const actionable = proposal.status === "sent" || proposal.status === "approved";
+  const actionable = isActionable(proposal.status);
 
   return (
     <>

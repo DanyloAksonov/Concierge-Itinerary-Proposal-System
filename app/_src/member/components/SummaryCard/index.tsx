@@ -1,15 +1,7 @@
 import type { ProposalDto } from "@/domain/proposals/service";
-import type { ProposalStatus } from "@/domain/proposals/status";
+import { MEMBER_STATUS, isActionable } from "@/app/_src/member/utils/member-status";
 import { formatMoney } from "@/lib/format";
 import { ProposalActions } from "../ProposalActions";
-
-// What each status means to the member, in their words rather than the system's.
-const MEMBER_STATUS: Record<ProposalStatus, string> = {
-  draft: "Preview — not yet sent",
-  sent: "Awaiting your approval",
-  approved: "Approved · awaiting payment",
-  paid: "Paid & locked in",
-};
 
 type Props = Pick<ProposalDto, "id" | "status" | "totalCents" | "items">;
 
@@ -28,11 +20,16 @@ export function SummaryCard({ id, status, totalCents, items }: Props) {
         </p>
         <p className="font-display text-4xl font-semibold tabular-nums">{formatMoney(totalCents)}</p>
       </div>
-      <p className="border-t pt-4 text-sm">
-        <span className="text-muted-foreground">Status </span>
-        <span className="font-medium">{MEMBER_STATUS[status]}</span>
-      </p>
-      <ProposalActions proposalId={id} status={status} variant="steps" />
+      {/* While the member can act, the status line lives in ProposalActions so it follows the
+          optimistic approval; otherwise (draft, paid) it's static. */}
+      {isActionable(status) ? (
+        <ProposalActions proposalId={id} status={status} variant="steps" />
+      ) : (
+        <p className="border-t pt-4 text-sm">
+          <span className="text-muted-foreground">Status </span>
+          <span className="font-medium">{MEMBER_STATUS[status]}</span>
+        </p>
+      )}
     </section>
   );
 }
